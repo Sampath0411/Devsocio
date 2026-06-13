@@ -8,14 +8,24 @@
 
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || ''
-const MODEL = import.meta.env.VITE_OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+const MODEL = import.meta.env.VITE_OPENROUTER_MODEL || 'openai/gpt-oss-120b:free'
+
+// Free models are shared and frequently rate-limited (429). We try the
+// configured model first, then fall through these alternates so a single
+// throttled provider doesn't take the AI features down.
+const FALLBACK_MODELS = [
+  'openai/gpt-oss-120b:free',
+  'openai/gpt-oss-20b:free',
+  'google/gemma-4-31b-it:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+]
 
 export const aiEnabled = () => Boolean(API_KEY)
 
-// Low-level chat call. Returns the assistant message text, or throws.
-async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
-  if (!API_KEY) throw new Error('OpenRouter API key not configured (VITE_OPENROUTER_API_KEY)')
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// POST one model; returns the text, or throws an Error carrying the status code.
+async function callModel(model, messages, { temperature, maxTokens }) {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -25,22 +35,44 @@ async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
       'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://devsocio.app',
       'X-Title': 'DevSocio',
     },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature,
-      max_tokens: maxTokens,
-      messages,
-    }),
+    body: JSON.stringify({ model, temperature, max_tokens: maxTokens, messages }),
   })
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
-    throw new Error(`OpenRouter ${res.status}: ${detail.slice(0, 200)}`)
+    const err = new Error(`OpenRouter ${res.status}: ${detail.slice(0, 160)}`)
+    err.status = res.status
+    throw err
   }
   const data = await res.json()
   const text = data?.choices?.[0]?.message?.content?.trim()
   if (!text) throw new Error('OpenRouter returned an empty response')
   return text
+}
+
+// Low-level chat call. Tries the configured model + fallbacks, retrying once
+// on a 429 (rate limit) per model. Returns the assistant message text, or throws.
+async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
+  if (!API_KEY) throw new Error('OpenRouter API key not configured (VITE_OPENROUTER_API_KEY)')
+
+  const candidates = [MODEL, ...FALLBACK_MODELS.filter((m) => m !== MODEL)]
+  let lastErr
+  for (const model of candidates) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await callModel(model, messages, { temperature, maxTokens })
+      } catch (err) {
+        lastErr = err
+        // Retry the same model once on a transient rate limit, else move on.
+        if (err.status === 429 && attempt === 0) {
+          await sleep(1200)
+          continue
+        }
+        break
+      }
+    }
+  }
+  throw lastErr || new Error('All OpenRouter models failed')
 }
 
 // Pull the first JSON object/array out of a model response (handles ```json fences).
