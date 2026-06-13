@@ -19,10 +19,12 @@ export default function Explore() {
 
   const filtered = people.filter((u) => {
     const stack = u.techStack || []
+    const needle = q.toLowerCase()
     const matchQ = !q ||
-      u.username?.toLowerCase().includes(q.toLowerCase()) ||
-      u.displayName?.toLowerCase().includes(q.toLowerCase()) ||
-      stack.some((s) => s.toLowerCase().includes(q.toLowerCase()))
+      u.username?.toLowerCase().includes(needle) ||
+      u.displayName?.toLowerCase().includes(needle) ||
+      u.bio?.toLowerCase().includes(needle) ||
+      stack.some((s) => s.toLowerCase().includes(needle))
     const matchF = filter === 'All' ||
       (filter === 'Open to Collab' && u.openToCollab) ||
       (filter === 'Looking for Co-founder' && u.lookingForCofounder) ||

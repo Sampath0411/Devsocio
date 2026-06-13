@@ -22,7 +22,6 @@ import {
 import { db } from '../firebase'
 import {
   POSTS as MOCK_POSTS,
-  USERS as MOCK_USERS,
   IDEAS as MOCK_IDEAS,
   NOTIFICATIONS as MOCK_NOTIFICATIONS,
   CONVERSATIONS as MOCK_CONVERSATIONS,
@@ -57,19 +56,17 @@ export async function fetchProfileByUsername(username) {
   return snap.empty ? null : snap.docs[0].data()
 }
 
-// Live list of users (Explore, Suggested, Leaderboard, Admin). Mock fallback.
+// Live list of users (Explore, Suggested, Leaderboard, Admin). Returns REAL
+// users only — no mock fallback — so search and Admin reflect actual accounts.
 export function subscribeUsers(onData, max = 200) {
   try {
     return onSnapshot(
       query(collection(db, 'users'), limit(max)),
-      (snap) => {
-        const live = snap.docs.map((d) => d.data())
-        onData(live.length ? live : MOCK_USERS)
-      },
-      () => onData(MOCK_USERS),
+      (snap) => onData(snap.docs.map((d) => d.data())),
+      () => onData([]),
     )
   } catch {
-    onData(MOCK_USERS)
+    onData([])
     return () => {}
   }
 }
