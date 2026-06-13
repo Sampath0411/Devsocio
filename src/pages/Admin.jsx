@@ -1,24 +1,45 @@
 import { useStore } from '../store/useStore'
 import { Avatar } from '../components/ui'
-import { ShieldAlert, Flag, Eye, Trash2, Users, FileText } from '../components/icons'
+import {
+  ShieldAlert, Users, FileText, Mail, Coins,
+  GithubMark, GoogleMark,
+} from '../components/icons'
+
+// Sign-up method → display label, colour and icon.
+const PROVIDERS = [
+  { key: 'google', label: 'Google', color: '#EA4335', Icon: GoogleMark },
+  { key: 'github', label: 'GitHub', color: '#FFFFFF', Icon: GithubMark },
+  { key: 'email', label: 'Email / Password', color: '#00C896', Icon: Mail },
+]
+
+// Normalise a stored provider value; anything unrecognised counts as email.
+const providerKey = (u) => {
+  const p = (u.provider || '').toLowerCase()
+  if (p.includes('google')) return 'google'
+  if (p.includes('github')) return 'github'
+  return 'email'
+}
 
 export default function Admin() {
   const { users, posts } = useStore()
 
-  // Live moderation queue would come from a `reports` collection; until that's
-  // populated we surface the most recent users as illustrative report rows.
-  const sample = users.slice(0, 3)
-  const REPORTS = [
-    { id: 'rp1', target: 'post', reason: 'Spam', reporter: sample[0], status: 'pending' },
-    { id: 'rp2', target: 'comment', reason: 'Abuse', reporter: sample[1], status: 'pending' },
-    { id: 'rp3', target: 'profile', reason: 'Misinformation', reporter: sample[2], status: 'reviewed' },
-  ].filter((r) => r.reporter)
+  // Real login analytics: how many accounts signed in with each method.
+  const counts = users.reduce(
+    (acc, u) => { acc[providerKey(u)] += 1; return acc },
+    { google: 0, github: 0, email: 0 },
+  )
+  const total = users.length || 1
 
-  const STATS = [
-    { label: 'Total Users', value: String(users.length), Icon: Users },
-    { label: 'Total Posts', value: String(posts.length), Icon: FileText },
-    { label: 'Open Reports', value: String(REPORTS.filter((r) => r.status === 'pending').length), Icon: Flag },
+  const stats = [
+    { label: 'Total Users', value: users.length, Icon: Users },
+    { label: 'Total Posts', value: posts.length, Icon: FileText },
+    { label: 'Total Credits', value: users.reduce((s, u) => s + (u.credits || 0), 0), Icon: Coins },
   ]
+
+  // Most recent members (createdAt desc when available).
+  const recent = [...users]
+    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+    .slice(0, 8)
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -28,7 +49,7 @@ export default function Admin() {
       </div>
 
       <div className="mb-5 grid grid-cols-3 gap-3">
-        {STATS.map((s) => (
+        {stats.map((s) => (
           <div key={s.label} className="card flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-card bg-primary/10 text-primary"><s.Icon size={18} /></span>
             <div>
@@ -39,20 +60,58 @@ export default function Admin() {
         ))}
       </div>
 
-      <h2 className="mb-3 font-display text-sm font-bold">Reported Content</h2>
-      <div className="card divide-y divide-border p-0">
-        {REPORTS.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 px-4 py-3">
-            <Avatar src={r.reporter.avatar} alt={r.reporter.displayName} size={32} />
-            <div className="flex-1">
-              <p className="text-sm"><span className="font-semibold capitalize">{r.target}</span> reported for <span className="text-danger">{r.reason}</span></p>
-              <p className="text-xs text-text-muted">by @{r.reporter.username}</p>
+      {/* Real sign-up / login breakdown by auth provider */}
+      <h2 className="mb-3 font-display text-sm font-bold">Sign-ups by method</h2>
+      <div className="card mb-5 space-y-4">
+        {PROVIDERS.map(({ key, label, color, Icon }) => {
+          const n = counts[key]
+          const pct = Math.round((n / total) * 100)
+          return (
+            <div key={key}>
+              <div className="mb-1 flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <span className="grid h-7 w-7 place-items-center rounded-card"
+                    style={{ backgroundColor: `${color}1a`, color }}>
+                    <Icon size={15} />
+                  </span>
+                  {label}
+                </span>
+                <span className="text-text-muted"><b className="text-text-primary">{n}</b> · {pct}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-bg">
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+              </div>
             </div>
-            <span className={`pill border ${r.status === 'pending' ? 'border-warning/40 text-warning' : 'border-success/40 text-success'}`}>{r.status}</span>
-            <button className="btn-ghost !py-1.5 text-xs"><Eye size={13} /> Review</button>
-            <button className="btn-ghost !py-1.5 text-xs text-danger"><Trash2 size={13} /> Remove</button>
-          </div>
-        ))}
+          )
+        })}
+        <p className="text-xs text-text-muted">
+          Based on {users.length} loaded {users.length === 1 ? 'account' : 'accounts'}.
+        </p>
+      </div>
+
+      {/* Recent members with the method they used */}
+      <h2 className="mb-3 font-display text-sm font-bold">Recent members</h2>
+      <div className="card divide-y divide-border p-0">
+        {recent.map((u) => {
+          const pk = providerKey(u)
+          const meta = PROVIDERS.find((p) => p.key === pk)
+          const Icon = meta.Icon
+          return (
+            <div key={u.uid} className="flex items-center gap-3 px-4 py-3">
+              <Avatar src={u.avatar} alt={u.displayName} size={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{u.displayName}</p>
+                <p className="truncate text-xs text-text-muted">@{u.username}{u.email ? ` · ${u.email}` : ''}</p>
+              </div>
+              <span className="pill border border-border" style={{ color: meta.color }}>
+                <Icon size={12} /> {meta.label}
+              </span>
+            </div>
+          )
+        })}
+        {recent.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-text-muted">No members yet.</p>
+        )}
       </div>
     </div>
   )

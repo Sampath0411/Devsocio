@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth, initAnalytics } from './firebase'
-import { ensureProfile } from './lib/auth'
+import { ensureProfile, isAdmin } from './lib/auth'
 import {
   subscribeProfile,
   subscribePosts,
@@ -37,6 +37,15 @@ function Protected({ children, wide }) {
   const location = useLocation()
   if (!firebaseUser) return <Navigate to="/login" replace state={{ from: location }} />
   return <Layout wide={wide}>{children}</Layout>
+}
+
+// Admin-only guard — only the configured ADMIN_EMAIL may view /admin (PRD §9).
+function AdminOnly({ children }) {
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  const location = useLocation()
+  if (!firebaseUser) return <Navigate to="/login" replace state={{ from: location }} />
+  if (!isAdmin(firebaseUser)) return <Navigate to="/feed" replace />
+  return <Layout wide>{children}</Layout>
 }
 
 export default function App() {
@@ -122,7 +131,7 @@ export default function App() {
           <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
           <Route path="/credits" element={<Protected wide><Credits /></Protected>} />
           <Route path="/post/:id" element={<Protected><PostDetail /></Protected>} />
-          <Route path="/admin" element={<Protected wide><Admin /></Protected>} />
+          <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

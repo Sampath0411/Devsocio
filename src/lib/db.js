@@ -57,8 +57,8 @@ export async function fetchProfileByUsername(username) {
   return snap.empty ? null : snap.docs[0].data()
 }
 
-// Live list of users (Explore, Suggested, Leaderboard). Mock fallback.
-export function subscribeUsers(onData, max = 50) {
+// Live list of users (Explore, Suggested, Leaderboard, Admin). Mock fallback.
+export function subscribeUsers(onData, max = 200) {
   try {
     return onSnapshot(
       query(collection(db, 'users'), limit(max)),

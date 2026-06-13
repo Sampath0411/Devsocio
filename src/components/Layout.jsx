@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
-import { logout as fbLogout } from '../lib/auth'
+import { logout as fbLogout, isAdmin } from '../lib/auth'
 import { Avatar } from './ui'
 import { TRENDING_HASHTAGS } from '../data/mock'
 import {
@@ -87,7 +87,9 @@ function ProfileMenu() {
           <div className="my-1 h-px bg-border" />
           <Link to={`/profile/${user.username}`} onClick={() => setOpen(false)} className={item}><User size={16} /> Profile</Link>
           <Link to="/profile/edit" onClick={() => setOpen(false)} className={item}><Settings size={16} /> Edit profile</Link>
-          <Link to="/admin" onClick={() => setOpen(false)} className={item}><ShieldAlert size={16} /> Admin panel</Link>
+          {isAdmin(firebaseUser) && (
+            <Link to="/admin" onClick={() => setOpen(false)} className={item}><ShieldAlert size={16} /> Admin panel</Link>
+          )}
           <button onClick={doLogout} className={`${item} hover:text-danger`}><LogOut size={16} /> Log out</button>
           <p className="px-2.5 pb-1 pt-2 text-[10px] text-text-muted">
             {firebaseUser?.email || 'signed in'}

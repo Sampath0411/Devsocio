@@ -6,11 +6,24 @@ import {
   updateProfile,
   signOut,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db, googleProvider, githubProvider } from '../firebase'
+
+// Only this account can see the Admin panel (PRD §9 — ADMIN role).
+export const ADMIN_EMAIL = 'sampathlox@gmail.com'
+export const isAdmin = (user) =>
+  !!user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
 const avatarFor = (seed) =>
   `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6c63ff`
+
+// Which sign-in method created/owns this account: 'google' | 'github' | 'email'.
+function providerOf(user) {
+  const id = user?.providerData?.[0]?.providerId || ''
+  if (id.includes('google')) return 'google'
+  if (id.includes('github')) return 'github'
+  return 'email'
+}
 
 // Default profile written to users/{uid} on first sign-in (PRD §8.3).
 function defaultProfile(user, extra = {}) {
@@ -24,6 +37,7 @@ function defaultProfile(user, extra = {}) {
     avatar: user.photoURL || avatarFor(extra.username || base),
     devLevel: extra.devLevel || 'Builder',
     techStack: extra.techStack || ['React'],
+    provider: providerOf(user), // how they signed up (for Admin analytics)
     credits: 100, // +100 on signup (PRD §5.1)
     followersCount: 0,
     followingCount: 0,
@@ -48,7 +62,13 @@ export async function ensureProfile(user, extra = {}) {
       await setDoc(ref, fallback)
       return fallback
     }
-    return snap.data()
+    // Backfill the provider on accounts created before we tracked it, and
+    // stamp the last login so Admin analytics stay accurate.
+    const data = snap.data()
+    const patch = { lastLoginAt: serverTimestamp() }
+    if (!data.provider) patch.provider = providerOf(user)
+    updateDoc(ref, patch).catch(() => {})
+    return { ...data, ...patch }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn('[DevSocio] Firestore profile unavailable, using local default:', err?.message)
