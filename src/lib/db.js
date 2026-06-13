@@ -1,48 +1,55 @@
-// Firestore data layer: real-time user profile, credits, and posts.
-// Every call degrades gracefully if rules block access, so the prototype
-// keeps working even before Firestore rules/collections are configured.
+// Data layer: real-time user profile, credits, and posts on Firebase
+// Realtime Database. Every call degrades gracefully if the DB is unreachable,
+// so the prototype keeps working even before rules/data are configured.
 import {
-  doc,
-  onSnapshot,
-  updateDoc,
-  increment,
-  collection,
-  addDoc,
+  ref,
+  onValue,
+  update,
+  push,
+  set,
+  get,
   query,
-  orderBy,
-  limit,
+  orderByChild,
+  limitToLast,
+  runTransaction,
   serverTimestamp,
-} from 'firebase/firestore'
+} from 'firebase/database'
 import { db } from '../firebase'
 import { POSTS as MOCK_POSTS } from '../data/mock'
 
-// Live subscription to a user's profile doc (PRD §8.3 users collection).
+// Live subscription to a user's profile node (PRD §8.3 users).
+// onValue returns its own unsubscribe function.
 export function subscribeProfile(uid, onData, onError) {
-  return onSnapshot(
-    doc(db, 'users', uid),
-    (snap) => snap.exists() && onData(snap.data()),
+  return onValue(
+    ref(db, `users/${uid}`),
+    (snap) => snap.exists() && onData(snap.val()),
     (err) => onError?.(err),
   )
 }
 
-// Credits are stored on the user doc and updated atomically (PRD §5).
+// Credits live on the user node and update atomically (PRD §5).
 export async function changeCredits(uid, delta) {
-  await updateDoc(doc(db, 'users', uid), { credits: increment(delta) })
+  await runTransaction(ref(db, `users/${uid}/credits`), (cur) => (cur || 0) + delta)
 }
 
 export async function updateProfileDoc(uid, fields) {
-  await updateDoc(doc(db, 'users', uid), fields)
+  await update(ref(db, `users/${uid}`), fields)
 }
 
-// Live feed. Falls back to seeded mock posts if the collection is empty
-// or unreadable, so the feed is never blank in the prototype.
+// Live feed. Falls back to seeded mock posts if the node is empty or
+// unreadable, so the feed is never blank in the prototype.
 export function subscribePosts(onData) {
   try {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50))
-    return onSnapshot(
+    const q = query(ref(db, 'posts'), orderByChild('createdAt'), limitToLast(50))
+    return onValue(
       q,
       (snap) => {
-        const live = snap.docs.map((d) => ({ postId: d.id, ...d.data() }))
+        const val = snap.val()
+        if (!val) return onData(MOCK_POSTS)
+        // RTDB returns an object keyed by id, sorted ascending — newest last.
+        const live = Object.entries(val)
+          .map(([postId, data]) => ({ postId, ...data }))
+          .reverse()
         onData(live.length ? live : MOCK_POSTS)
       },
       () => onData(MOCK_POSTS),
@@ -54,9 +61,9 @@ export function subscribePosts(onData) {
 }
 
 export async function createPost(post) {
-  const ref = await addDoc(collection(db, 'posts'), {
-    ...post,
-    createdAt: serverTimestamp(),
-  })
-  return ref.id
+  const r = push(ref(db, 'posts'))
+  await set(r, { ...post, createdAt: serverTimestamp() })
+  return r.key
 }
+
+export { get } // re-export for convenience if needed elsewhere
