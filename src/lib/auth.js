@@ -36,15 +36,24 @@ function defaultProfile(user, extra = {}) {
 }
 
 // Create the Firestore profile doc if it doesn't already exist.
+// Best-effort: if Firestore is unreachable (DB not created yet, blocked by an
+// extension, offline), we DON'T fail sign-in — we return a local default and
+// let the app sync the real doc once Firestore is reachable.
 export async function ensureProfile(user, extra = {}) {
-  const ref = doc(db, 'users', user.uid)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) {
-    const profile = defaultProfile(user, extra)
-    await setDoc(ref, profile)
-    return profile
+  const fallback = defaultProfile(user, extra)
+  try {
+    const ref = doc(db, 'users', user.uid)
+    const snap = await getDoc(ref)
+    if (!snap.exists()) {
+      await setDoc(ref, fallback)
+      return fallback
+    }
+    return snap.data()
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[DevSocio] Firestore profile unavailable, using local default:', err?.message)
+    return fallback
   }
-  return snap.data()
 }
 
 export async function emailSignup({ email, password, username, displayName, devLevel, techStack }) {
