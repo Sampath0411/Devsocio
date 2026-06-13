@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
 import { Avatar, LevelBadge, StackPill, EmptyState } from '../components/ui'
-import { USERS } from '../data/mock'
+import { fetchProfileByUsername } from '../lib/db'
 import {
   Handshake, Rocket, Coins, Bookmark, PenSquare,
   GithubMark, Link2, Settings, MessageCircle,
@@ -15,12 +15,23 @@ const TABS = ['Posts', 'Projects', 'Ideas', 'Saved']
 export default function Profile() {
   const { username } = useParams()
   const toast = useToast()
-  const { user: me, posts, following, toggleFollow, saved } = useStore()
+  const { user: me, posts, users, following, toggleFollow, saved } = useStore()
 
+  // Resolve from: my own profile → loaded directory → one-shot Firestore fetch.
+  const [fetched, setFetched] = useState(null)
   const profile =
-    USERS.find((u) => u.username === username) ||
     (me?.username === username ? me : null) ||
+    users.find((u) => u.username === username) ||
+    fetched ||
     me
+
+  useEffect(() => {
+    let alive = true
+    if (me?.username !== username && !users.find((u) => u.username === username)) {
+      fetchProfileByUsername(username).then((p) => alive && p && setFetched(p)).catch(() => {})
+    }
+    return () => { alive = false }
+  }, [username, users, me])
 
   const [tab, setTab] = useState('Posts')
 

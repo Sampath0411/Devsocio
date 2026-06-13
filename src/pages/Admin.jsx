@@ -1,21 +1,25 @@
+import { useStore } from '../store/useStore'
 import { Avatar } from '../components/ui'
-import { USERS } from '../data/mock'
 import { ShieldAlert, Flag, Eye, Trash2, Users, FileText } from '../components/icons'
 
-// Admin moderation panel (PRD §7.4 / §9 — /admin, ADMIN only).
-const REPORTS = [
-  { id: 'rp1', target: 'post', reason: 'Spam', reporter: USERS[0], status: 'pending' },
-  { id: 'rp2', target: 'comment', reason: 'Abuse', reporter: USERS[1], status: 'pending' },
-  { id: 'rp3', target: 'profile', reason: 'Misinformation', reporter: USERS[3], status: 'reviewed' },
-]
-
-const STATS = [
-  { label: 'Total Users', value: '1,042', Icon: Users },
-  { label: 'Posts Today', value: '57', Icon: FileText },
-  { label: 'Open Reports', value: '2', Icon: Flag },
-]
-
 export default function Admin() {
+  const { users, posts } = useStore()
+
+  // Live moderation queue would come from a `reports` collection; until that's
+  // populated we surface the most recent users as illustrative report rows.
+  const sample = users.slice(0, 3)
+  const REPORTS = [
+    { id: 'rp1', target: 'post', reason: 'Spam', reporter: sample[0], status: 'pending' },
+    { id: 'rp2', target: 'comment', reason: 'Abuse', reporter: sample[1], status: 'pending' },
+    { id: 'rp3', target: 'profile', reason: 'Misinformation', reporter: sample[2], status: 'reviewed' },
+  ].filter((r) => r.reporter)
+
+  const STATS = [
+    { label: 'Total Users', value: String(users.length), Icon: Users },
+    { label: 'Total Posts', value: String(posts.length), Icon: FileText },
+    { label: 'Open Reports', value: String(REPORTS.filter((r) => r.status === 'pending').length), Icon: Flag },
+  ]
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <div className="mb-4 flex items-center gap-2">

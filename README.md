@@ -33,7 +33,27 @@ Auth and user data are **live on Firebase** (project `devsocio`):
    (`localhost` is allowed by default for local dev).
 
 If Firestore/providers aren't set up yet, the app degrades gracefully (auth still works;
-profile falls back to a default and the feed shows seeded sample posts).
+profile falls back to a default and the feed/explore/ideas show seeded sample data).
+
+## AI features (OpenRouter)
+
+The AI features — post analysis, idea scoring, and bio generation (PRD §4) — call
+**OpenRouter** directly from the client (`src/lib/ai.js`). Configure them via env:
+
+```bash
+cp .env.example .env   # then add your key
+```
+
+```ini
+VITE_OPENROUTER_API_KEY=sk-or-v1-...
+VITE_OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+```
+
+> ⚠️ **Security:** this is a static client app, so any `VITE_`-prefixed value is bundled
+> into the shipped JS and visible in the browser. That's fine for a prototype/hackathon,
+> but before a real launch move these calls behind a server proxy (a Cloud Function) so
+> the key stays secret. Every AI call falls back to a sensible local result if the key is
+> missing or the request fails, so the UI never breaks.
 
 ## Deploy to Firebase Hosting
 
@@ -73,11 +93,22 @@ explore. Credits update live (invest in ideas, redeem rewards, copy your referra
 
 React 18 + Vite · Tailwind CSS · Framer Motion · Zustand · React Router
 
-## Not yet built (would be the next phase)
+## Now wired to the backend
 
-Firebase Auth + Firestore (users/credits/posts) are wired. Still simulated or pending:
-real Claude (`claude-sonnet-4-6`) calls (AI features run client-side mocks behind
-`CreatePostModal`/`Ideas`/`EditProfile`), Cloudinary image uploads, real-time DMs and
-notifications (currently mock data in `src/data/mock.js`), and email (Resend). Wire these
-in by swapping the mock/simulated calls for a Claude API route and additional Firestore
-collections.
+Beyond auth/profiles/credits, the following are live on Firestore (with mock fallback
+when a collection is empty, so demos never render blank):
+
+- **Likes / saves / follows** — per-user docs + atomic counters; hydrated in real time
+  via `onSnapshot` (`subscribeMyLikes` / `subscribeMySaves` / `subscribeMyFollowing`).
+- **Comments** — `posts/{id}/comments` subcollection, live on the post-detail page.
+- **Ideas board** — real `ideas` collection; posting an idea runs a real AI score
+  (strengths/weaknesses/competitors) and investing persists.
+- **Notifications** — per-user `notifications` feed; likes/follows/comments push to it.
+- **Direct messages** — `conversations` + `messages` subcollections, real-time threads.
+- **Explore / Suggested / Leaderboard / Admin stats** — query the live `users` directory.
+- **AI** — OpenRouter calls (see above) for post analysis, idea scoring, and bios.
+
+## Still pending (next phase)
+
+Cloudinary image uploads (post images/avatars/covers still use generated art) and
+transactional email (Resend) — both need a server/Cloud Function, so they're deferred.

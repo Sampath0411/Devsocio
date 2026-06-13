@@ -95,7 +95,11 @@ export default function PostCard({ post }) {
       {/* actions (PRD §3.3.2) */}
       <div className="flex items-center gap-1 border-t border-border pt-2 text-sm">
         <span className="px-1">
-          <LikeButton liked={liked} count={likeCount} onToggle={() => toggleLike(post.postId)} />
+          <LikeButton
+            liked={liked}
+            count={likeCount}
+            onToggle={() => toggleLike(post.postId, post.authorUid || post.author?.uid)}
+          />
         </span>
         <Link
           to={`/post/${post.postId}`}

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar, StackPill, AIBadge, AILoader } from '../components/ui'
-import { IDEAS } from '../data/mock'
+import { subscribeIdeas, createIdea, investInIdea } from '../lib/db'
+import { scoreIdea } from '../lib/ai'
 import { Coins, MessageCircle, Handshake, Lightbulb, Check, Circle } from '../components/icons'
 
 const SORTS = ['Newest', 'Most Invested', 'AI Score', 'Most Discussed']
@@ -19,22 +20,25 @@ function ScoreRing({ score }) {
   )
 }
 
-function IdeaCard({ idea, onInvest, invested }) {
+function IdeaCard({ idea, onInvest }) {
+  const strengths = idea.strengths || []
+  const weaknesses = idea.weaknesses || []
+  const competitors = idea.competitors || []
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card space-y-3">
       <div className="flex items-start gap-3">
-        <Link to={`/profile/${idea.author.username}`}>
-          <Avatar src={idea.author.avatar} alt={idea.author.displayName} size={40} />
+        <Link to={`/profile/${idea.author?.username}`}>
+          <Avatar src={idea.author?.avatar} alt={idea.author?.displayName} size={40} />
         </Link>
         <div className="flex-1">
           <h3 className="font-display text-lg font-bold leading-tight">{idea.title}</h3>
-          <p className="text-xs text-text-muted">by @{idea.author.username} · {idea.createdAt}</p>
+          <p className="text-xs text-text-muted">by @{idea.author?.username} · {idea.createdAt || 'now'}</p>
         </div>
         <ScoreRing score={idea.aiScore} />
       </div>
 
       <p className="text-sm text-text-primary">{idea.body}</p>
-      <div className="flex flex-wrap gap-1.5">{idea.tags.map((t) => <StackPill key={t} name={t} />)}</div>
+      <div className="flex flex-wrap gap-1.5">{(idea.tags || []).map((t) => <StackPill key={t} name={t} />)}</div>
 
       <div className="rounded-card border border-primary/25 bg-primary/[0.06] p-3 text-sm">
         <AIBadge>AI Idea Analysis</AIBadge>
@@ -42,7 +46,7 @@ function IdeaCard({ idea, onInvest, invested }) {
           <div>
             <p className="mb-1 text-xs font-semibold text-success">Strengths</p>
             <ul className="space-y-1 text-text-muted">
-              {idea.strengths.map((s) => (
+              {strengths.map((s) => (
                 <li key={s} className="flex items-start gap-1.5"><Check size={13} className="mt-0.5 shrink-0 text-success" /> {s}</li>
               ))}
             </ul>
@@ -50,20 +54,22 @@ function IdeaCard({ idea, onInvest, invested }) {
           <div>
             <p className="mb-1 text-xs font-semibold text-danger">Weaknesses</p>
             <ul className="space-y-1 text-text-muted">
-              {idea.weaknesses.map((w) => (
+              {weaknesses.map((w) => (
                 <li key={w} className="flex items-start gap-1.5"><Circle size={6} fill="currentColor" strokeWidth={0} className="mt-1.5 shrink-0 text-danger" /> {w}</li>
               ))}
             </ul>
           </div>
         </div>
-        <p className="mt-2 text-xs text-text-muted">
-          <span className="font-semibold text-text-primary">Similar:</span> {idea.competitors.join(', ')}
-        </p>
+        {competitors.length > 0 && (
+          <p className="mt-2 text-xs text-text-muted">
+            <span className="font-semibold text-text-primary">Similar:</span> {competitors.join(', ')}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-4 border-t border-border pt-3 text-sm text-text-muted">
-        <span className="flex items-center gap-1.5"><Coins size={15} /> {invested}</span>
-        <span className="flex items-center gap-1.5"><MessageCircle size={15} /> {idea.comments}</span>
+        <span className="flex items-center gap-1.5"><Coins size={15} /> {idea.invested || 0}</span>
+        <span className="flex items-center gap-1.5"><MessageCircle size={15} /> {idea.comments || 0}</span>
         <button onClick={onInvest} className="btn-ghost ml-auto !py-1.5 !px-3 text-xs">
           <Coins size={14} /> Invest 50
         </button>
@@ -75,16 +81,18 @@ function IdeaCard({ idea, onInvest, invested }) {
 
 export default function Ideas() {
   const toast = useToast()
-  const spendCredits = useStore((s) => s.spendCredits)
+  const { user, spendCredits } = useStore()
+  const [ideas, setIdeas] = useState([])
   const [sort, setSort] = useState('AI Score')
-  const [invests, setInvests] = useState(() => Object.fromEntries(IDEAS.map((i) => [i.ideaId, i.invested])))
   const [draft, setDraft] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
 
-  const sorted = [...IDEAS].sort((a, b) => {
-    if (sort === 'AI Score') return b.aiScore - a.aiScore
-    if (sort === 'Most Invested') return invests[b.ideaId] - invests[a.ideaId]
-    if (sort === 'Most Discussed') return b.comments - a.comments
+  useEffect(() => subscribeIdeas(setIdeas), [])
+
+  const sorted = [...ideas].sort((a, b) => {
+    if (sort === 'AI Score') return (b.aiScore || 0) - (a.aiScore || 0)
+    if (sort === 'Most Invested') return (b.invested || 0) - (a.invested || 0)
+    if (sort === 'Most Discussed') return (b.comments || 0) - (a.comments || 0)
     return 0
   })
 
@@ -93,18 +101,44 @@ export default function Ideas() {
       toast('Not enough credits to invest', { tone: 'warning' })
       return
     }
-    setInvests((s) => ({ ...s, [idea.ideaId]: s[idea.ideaId] + 50 }))
+    try {
+      await investInIdea(idea.ideaId, 50)
+    } catch {
+      /* optimistic — credit already spent locally */
+    }
     toast(`Invested 50 credits in "${idea.title}"`, { icon: Coins })
   }
 
-  const analyze = () => {
+  // Post an idea: real AI score + strengths/weaknesses, then persist to Firestore.
+  const analyze = async () => {
     if (!draft.trim()) return
     setAnalyzing(true)
-    setTimeout(() => {
-      setAnalyzing(false)
+    try {
+      const ai = await scoreIdea(draft)
+      const title = draft.split(/[.\n]/)[0].slice(0, 60).trim() || 'New idea'
+      await createIdea({
+        title,
+        body: draft.trim(),
+        author: {
+          uid: user?.uid,
+          username: user?.username,
+          displayName: user?.displayName,
+          avatar: user?.avatar,
+        },
+        authorUid: user?.uid,
+        aiScore: Number(ai.score.toFixed(1)),
+        strengths: ai.strengths,
+        weaknesses: ai.weaknesses,
+        competitors: ai.competitors,
+        tags: user?.techStack?.slice(0, 2) || [],
+      })
       setDraft('')
       toast('Idea posted — AI score generated!', { icon: Lightbulb })
-    }, 1800)
+    } catch {
+      toast('AI scoring failed — try again in a moment', { tone: 'warning' })
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   return (
@@ -136,7 +170,7 @@ export default function Ideas() {
       <div className="space-y-4">
         <AnimatePresence>
           {sorted.map((idea) => (
-            <IdeaCard key={idea.ideaId} idea={idea} invested={invests[idea.ideaId]} onInvest={() => invest(idea)} />
+            <IdeaCard key={idea.ideaId} idea={idea} onInvest={() => invest(idea)} />
           ))}
         </AnimatePresence>
       </div>

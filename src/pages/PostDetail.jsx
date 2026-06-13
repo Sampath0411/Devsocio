@@ -1,15 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import PostCard from '../components/PostCard'
 import { Avatar } from '../components/ui'
-import { USERS } from '../data/mock'
+import { subscribeComments, addComment, pushNotification } from '../lib/db'
 import { ChevronLeft, Heart, Send } from '../components/icons'
-
-const SEED_COMMENTS = [
-  { id: 1, author: USERS[0], text: 'this is clean — saving for later', time: '1h' },
-  { id: 2, author: USERS[3], text: 'nice — consider memoizing the callback too', time: '40m' },
-]
 
 export default function PostDetail() {
   const { id } = useParams()
@@ -17,13 +12,44 @@ export default function PostDetail() {
   const { posts, user } = useStore()
   const post = posts.find((p) => p.postId === id)
 
-  const [comments, setComments] = useState(SEED_COMMENTS)
+  const [comments, setComments] = useState([])
   const [draft, setDraft] = useState('')
 
-  const add = () => {
-    if (!draft.trim()) return
-    setComments((c) => [...c, { id: Date.now(), author: user, text: draft, time: 'now' }])
+  // Live comments for this post (PRD §3.8).
+  useEffect(() => {
+    if (!id) return
+    return subscribeComments(id, setComments)
+  }, [id])
+
+  const add = async () => {
+    const text = draft.trim()
+    if (!text) return
     setDraft('')
+    try {
+      await addComment(id, {
+        text,
+        author: {
+          uid: user?.uid,
+          username: user?.username,
+          displayName: user?.displayName,
+          avatar: user?.avatar,
+        },
+        authorUid: user?.uid,
+      })
+      const targetUid = post?.authorUid || post?.author?.uid
+      if (targetUid && targetUid !== user?.uid) {
+        pushNotification(targetUid, {
+          type: 'comment',
+          actorUid: user?.uid,
+          actor: { uid: user?.uid, username: user?.username, displayName: user?.displayName, avatar: user?.avatar },
+          text: `commented: "${text.slice(0, 40)}"`,
+          postId: id,
+        })
+      }
+    } catch {
+      // Optimistically show it locally even if the write failed.
+      setComments((c) => [...c, { id: 'local_' + c.length, author: user, text }])
+    }
   }
 
   if (!post) {
@@ -59,7 +85,7 @@ export default function PostDetail() {
               <div>
                 <p className="text-sm">
                   <span className="font-semibold">{c.author?.displayName || 'You'}</span>{' '}
-                  <span className="text-xs text-text-muted">· {c.time}</span>
+                  <span className="text-xs text-text-muted">@{c.author?.username}</span>
                 </p>
                 <p className="text-sm text-text-primary">{c.text}</p>
                 <div className="mt-1 flex gap-3 text-xs text-text-muted">

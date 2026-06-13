@@ -1,22 +1,28 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Avatar, LevelBadge, StackPill, AIBadge, EmptyState } from '../components/ui'
-import { USERS, TRENDING_HASHTAGS } from '../data/mock'
+import { TRENDING_HASHTAGS } from '../data/mock'
 import { Search, Handshake, Rocket, Star, Sparkles } from '../components/icons'
 
 const FILTERS = ['All', 'Open to Collab', 'Looking for Co-founder', 'Beginner-friendly', 'Trending']
 
 export default function Explore() {
-  const { following, toggleFollow } = useStore()
-  const [q, setQ] = useState('')
+  const { following, toggleFollow, users, user: me } = useStore()
+  const [params] = useSearchParams()
+  const [q, setQ] = useState(params.get('q') || '')
   const [filter, setFilter] = useState('All')
 
-  const filtered = USERS.filter((u) => {
+  // Show everyone except yourself.
+  const people = users.filter((u) => u.uid !== me?.uid)
+  const devOfWeek = people[3] || people[0]
+
+  const filtered = people.filter((u) => {
+    const stack = u.techStack || []
     const matchQ = !q ||
-      u.username.toLowerCase().includes(q.toLowerCase()) ||
-      u.displayName.toLowerCase().includes(q.toLowerCase()) ||
-      u.techStack.some((s) => s.toLowerCase().includes(q.toLowerCase()))
+      u.username?.toLowerCase().includes(q.toLowerCase()) ||
+      u.displayName?.toLowerCase().includes(q.toLowerCase()) ||
+      stack.some((s) => s.toLowerCase().includes(q.toLowerCase()))
     const matchF = filter === 'All' ||
       (filter === 'Open to Collab' && u.openToCollab) ||
       (filter === 'Looking for Co-founder' && u.lookingForCofounder) ||
@@ -46,14 +52,16 @@ export default function Explore() {
       </div>
 
       {/* Dev of the Week (PRD §3.5) */}
-      <div className="card mb-5 flex items-center gap-4 border-warning/40 bg-warning/[0.06]">
-        <Avatar src={USERS[3].avatar} alt="dev of week" size={56} ring />
-        <div className="flex-1">
-          <p className="pill border border-warning/40 text-warning"><Star size={11} /> Dev of the Week</p>
-          <p className="mt-1 font-semibold">{USERS[3].displayName}</p>
-          <p className="text-xs text-text-muted">{USERS[3].bio}</p>
+      {devOfWeek && (
+        <div className="card mb-5 flex items-center gap-4 border-warning/40 bg-warning/[0.06]">
+          <Avatar src={devOfWeek.avatar} alt="dev of week" size={56} ring />
+          <div className="flex-1">
+            <p className="pill border border-warning/40 text-warning"><Star size={11} /> Dev of the Week</p>
+            <p className="mt-1 font-semibold">{devOfWeek.displayName}</p>
+            <p className="text-xs text-text-muted">{devOfWeek.bio}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mb-3 flex items-center gap-2">
         <h2 className="font-display text-sm font-bold">Suggested Devs</h2>
@@ -84,7 +92,7 @@ export default function Explore() {
               <p className="mt-2 line-clamp-2 text-sm text-text-muted">{u.bio}</p>
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
                 <LevelBadge level={u.devLevel} />
-                {u.techStack.slice(0, 3).map((s) => <StackPill key={s} name={s} />)}
+                {(u.techStack || []).slice(0, 3).map((s) => <StackPill key={s} name={s} />)}
               </div>
               <div className="mt-2 flex gap-2">
                 {u.openToCollab && <span className="pill border border-success/40 text-success"><Handshake size={11} /> Open to Collab</span>}

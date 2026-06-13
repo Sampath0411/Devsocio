@@ -4,7 +4,14 @@ import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth, initAnalytics } from './firebase'
 import { ensureProfile } from './lib/auth'
-import { subscribeProfile, subscribePosts } from './lib/db'
+import {
+  subscribeProfile,
+  subscribePosts,
+  subscribeUsers,
+  subscribeMyLikes,
+  subscribeMySaves,
+  subscribeMyFollowing,
+} from './lib/db'
 import { useStore } from './store/useStore'
 import { ToastProvider } from './components/Toast'
 import PageLoader from './components/PageLoader'
@@ -33,19 +40,33 @@ function Protected({ children, wide }) {
 }
 
 export default function App() {
-  const { authReady, setAuthReady, setFirebaseUser, setProfile, clearAuth, setPosts } = useStore()
+  const {
+    authReady, setAuthReady, setFirebaseUser, setProfile, clearAuth,
+    setPosts, setUsers, setLikes, setSaved, setFollowing,
+  } = useStore()
 
-  // Real-time auth state (PRD §3.1.2) + live profile + live feed.
+  // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {
     initAnalytics()
     const unsubPosts = subscribePosts(setPosts)
+    const unsubUsers = subscribeUsers(setUsers)
     let unsubProfile = null
+    let unsubGraph = []
+
+    const stopGraph = () => { unsubGraph.forEach((fn) => fn?.()); unsubGraph = [] }
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       unsubProfile?.()
       unsubProfile = null
+      stopGraph()
       setFirebaseUser(u)
       if (u) {
+        // Live social graph for the signed-in user.
+        unsubGraph = [
+          subscribeMyLikes(u.uid, setLikes),
+          subscribeMySaves(u.uid, setSaved),
+          subscribeMyFollowing(u.uid, setFollowing),
+        ]
         try {
           const initial = await ensureProfile(u) // create doc on first sign-in
           setProfile(initial)
@@ -73,6 +94,8 @@ export default function App() {
       unsubAuth()
       unsubProfile?.()
       unsubPosts?.()
+      unsubUsers?.()
+      stopGraph()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

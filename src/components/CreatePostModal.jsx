@@ -3,14 +3,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { createPost } from '../lib/db'
+import { analyzePost } from '../lib/ai'
 import { AILoader, StackPill } from './ui'
 import { POST_TYPES } from '../data/mock'
 import { TYPE_META } from './postTypes'
 import { X, Sparkles, Coins } from './icons'
 
-// Simulated AI response per post type (PRD §4.1). Production calls
-// POST /api/ai/analyze → Claude (claude-sonnet-4-6) server-side (§8.2.3).
-const FAKE_AI = {
+// Local fallback line per post type, used only if the AI call fails (PRD §4.1).
+const FALLBACK_AI = {
   'Code Snippet': 'A clean utility — does one thing well and is easy to reuse.',
   'Project Showcase': 'Concept: 8/10 — strong execution. Add a live demo link to boost reach.',
   'Idea Post': 'Market score 7.5/10. Strong timing; validate willingness-to-pay early.',
@@ -27,13 +27,17 @@ export default function CreatePostModal({ open, onClose }) {
   const [aiState, setAiState] = useState('idle')
   const [aiResult, setAiResult] = useState('')
 
-  const runAI = () => {
+  // Real AI analysis via OpenRouter, with a graceful local fallback.
+  const runAI = async () => {
     setAiState('loading')
     setAiResult('')
-    setTimeout(() => {
-      setAiResult(FAKE_AI[type])
-      setAiState('done')
-    }, 1600)
+    try {
+      const text = await analyzePost(type, content)
+      setAiResult(text)
+    } catch {
+      setAiResult(FALLBACK_AI[type])
+    }
+    setAiState('done')
   }
 
   const publish = async () => {

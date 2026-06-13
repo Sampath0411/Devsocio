@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar } from '../components/ui'
-import { REWARDS, EARN_RULES, LEADERBOARD } from '../data/mock'
+import { REWARDS, EARN_RULES } from '../data/mock'
 import {
   Coins, Copy, Check, Gift, Trophy, Plus,
   Pin, Rocket, BadgeCheck, Bot, Zap, Palette, Crown,
@@ -11,9 +11,15 @@ import {
 const REWARD_ICONS = { Pin, Rocket, BadgeCheck, Bot, Zap, Palette, Crown }
 
 export default function Credits() {
-  const { user, spendCredits, addCredits } = useStore()
+  const { user, users, spendCredits, addCredits } = useStore()
   const toast = useToast()
   const [copied, setCopied] = useState(false)
+
+  // Live weekly leaderboard from the user directory, ranked by credits.
+  const leaderboard = [...users]
+    .sort((a, b) => (b.credits || 0) - (a.credits || 0))
+    .slice(0, 5)
+    .map((u, i) => ({ rank: i + 1, user: u, credits: u.credits || 0 }))
 
   const refLink = `devs.socio/join?ref=${user?.username || 'you'}`
 
@@ -73,7 +79,7 @@ export default function Credits() {
         <div className="card">
           <h2 className="mb-3 flex items-center gap-1.5 font-display text-sm font-bold"><Trophy size={15} /> Weekly Leaderboard</h2>
           <ol className="space-y-2.5">
-            {LEADERBOARD.map((row) => (
+            {leaderboard.map((row) => (
               <li key={row.rank} className="flex items-center gap-2 text-sm">
                 <span className="w-5 font-bold text-text-muted">{row.rank}</span>
                 <Avatar src={row.user.avatar} alt={row.user.displayName} size={28} />

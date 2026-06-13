@@ -4,7 +4,6 @@ import { useStore } from '../store/useStore'
 import PostCard from '../components/PostCard'
 import CreatePostModal from '../components/CreatePostModal'
 import { PostSkeleton, BouncingDots, Avatar } from '../components/ui'
-import { USERS } from '../data/mock'
 import { Plus, Rocket } from '../components/icons'
 
 // Dev-specific story reactions (PRD §3.4) — now icon-based, not emoji.
@@ -13,6 +12,8 @@ const STORY_REACTIONS = [RocketR, Skull, Flame, Brain, Zap, Check]
 
 function StoriesBar() {
   const user = useStore((s) => s.user)
+  const users = useStore((s) => s.users)
+  const others = users.filter((u) => u.uid !== user?.uid).slice(0, 12)
   return (
     <div className="flex gap-3 overflow-x-auto pb-1">
       <button className="flex w-16 shrink-0 flex-col items-center gap-1">
@@ -24,7 +25,7 @@ function StoriesBar() {
         </span>
         <span className="truncate text-[11px] text-text-muted">Your story</span>
       </button>
-      {USERS.map((u) => (
+      {others.map((u) => (
         <button key={u.uid} className="flex w-16 shrink-0 flex-col items-center gap-1">
           <span className="rounded-full bg-gradient-to-tr from-primary to-accent p-0.5">
             <span className="block rounded-full border-2 border-bg">

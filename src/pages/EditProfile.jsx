@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar, StackPill, AILoader } from '../components/ui'
+import { generateBio } from '../lib/ai'
 import { STACK_COLORS } from '../data/mock'
 import { Sparkles, Camera, Handshake, Rocket } from '../components/icons'
 
@@ -28,17 +29,26 @@ export default function EditProfile() {
       techStack: f.techStack.includes(s) ? f.techStack.filter((x) => x !== s) : [...f.techStack, s],
     }))
 
-  // AI bio generator (PRD §4.1)
-  const genBio = () => {
+  // AI bio generator (PRD §4.1) — real OpenRouter call, local fallback on error.
+  const genBio = async () => {
     setGenning(true)
-    setTimeout(() => {
+    try {
+      const bio = await generateBio({
+        techStack: form.techStack,
+        devLevel: user?.devLevel,
+        lookingForCofounder: form.lookingForCofounder,
+      })
+      setForm((f) => ({ ...f, bio }))
+      toast('AI bio generated', { icon: Sparkles })
+    } catch {
       const bio = `${form.techStack.slice(0, 3).join(' · ')} dev who ships in public. ${
         form.lookingForCofounder ? 'On the hunt for a co-founder.' : 'Always down to collab.'
       }`.slice(0, 160)
       setForm((f) => ({ ...f, bio }))
+      toast('AI offline — used a quick bio', { tone: 'warning' })
+    } finally {
       setGenning(false)
-      toast('AI bio generated', { icon: Sparkles })
-    }, 1500)
+    }
   }
 
   const save = async () => {

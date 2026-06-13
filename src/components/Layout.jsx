@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { logout as fbLogout } from '../lib/auth'
 import { Avatar } from './ui'
-import { USERS, TRENDING_HASHTAGS, LEADERBOARD } from '../data/mock'
+import { TRENDING_HASHTAGS } from '../data/mock'
 import {
   Home, Compass, Lightbulb, Mail, Bell, Search, Plus,
   User, Coins, Settings, LogOut, ShieldAlert, Code2, UserPlus,
@@ -100,16 +100,22 @@ function ProfileMenu() {
 
 function TopNav() {
   const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const runSearch = (e) => {
+    e.preventDefault()
+    navigate(`/explore?q=${encodeURIComponent(search.trim())}`)
+  }
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
         <Brand />
 
         {/* search (desktop) */}
-        <div className="relative hidden flex-1 max-w-sm md:block">
+        <form onSubmit={runSearch} className="relative hidden flex-1 max-w-sm md:block">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input className="input pl-9" placeholder="Search devs, stacks, #tags" />
-        </div>
+          <input className="input pl-9" placeholder="Search devs, stacks, #tags"
+            value={search} onChange={(e) => setSearch(e.target.value)} />
+        </form>
 
         {/* nav links */}
         <nav className="ml-auto flex items-center gap-0.5">
@@ -146,7 +152,12 @@ function TopNav() {
 
 // Right rail (suggested devs / trending / leaderboard) on wide screens.
 function RightPanel() {
-  const { following, toggleFollow } = useStore()
+  const { following, toggleFollow, users, user: me } = useStore()
+  const people = users.filter((u) => u.uid !== me?.uid)
+  const leaderboard = [...users]
+    .sort((a, b) => (b.credits || 0) - (a.credits || 0))
+    .slice(0, 5)
+    .map((u, i) => ({ rank: i + 1, user: u, credits: u.credits || 0 }))
   return (
     <aside className="sticky top-[88px] hidden h-fit w-72 shrink-0 space-y-4 lg:block">
       <div className="card">
@@ -154,7 +165,7 @@ function RightPanel() {
           Suggested for you
         </h3>
         <div className="space-y-3">
-          {USERS.slice(0, 3).map((u) => (
+          {people.slice(0, 3).map((u) => (
             <div key={u.uid} className="flex items-center gap-2">
               <Link to={`/profile/${u.username}`}>
                 <Avatar src={u.avatar} alt={u.displayName} size={36} />
@@ -163,7 +174,7 @@ function RightPanel() {
                 <Link to={`/profile/${u.username}`} className="block truncate text-sm font-semibold hover:underline">
                   {u.displayName}
                 </Link>
-                <p className="truncate text-xs text-text-muted">{u.techStack.slice(0, 2).join(' · ')}</p>
+                <p className="truncate text-xs text-text-muted">{(u.techStack || []).slice(0, 2).join(' · ')}</p>
               </div>
               <button
                 onClick={() => toggleFollow(u.uid)}
@@ -195,7 +206,7 @@ function RightPanel() {
       <div className="card">
         <h3 className="mb-3 font-display text-sm font-bold">Leaderboard</h3>
         <ol className="space-y-2">
-          {LEADERBOARD.slice(0, 5).map((row) => (
+          {leaderboard.map((row) => (
             <li key={row.rank} className="flex items-center gap-2 text-sm">
               <span className="w-4 text-text-muted">{row.rank}</span>
               <Avatar src={row.user.avatar} alt={row.user.displayName} size={26} />
