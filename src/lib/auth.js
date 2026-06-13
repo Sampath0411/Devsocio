@@ -1,4 +1,4 @@
-// Auth + user-profile helpers built on Firebase Auth and Realtime Database.
+// Auth + user-profile helpers built on Firebase Auth and Firestore.
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -6,13 +6,13 @@ import {
   updateProfile,
   signOut,
 } from 'firebase/auth'
-import { ref, get, set, serverTimestamp } from 'firebase/database'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db, googleProvider, githubProvider } from '../firebase'
 
 const avatarFor = (seed) =>
   `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6c63ff`
 
-// Default profile written to /users/{uid} on first sign-in (PRD §8.3).
+// Default profile written to users/{uid} on first sign-in (PRD §8.3).
 function defaultProfile(user, extra = {}) {
   const base = (user.email || user.uid).split('@')[0]
   return {
@@ -35,22 +35,23 @@ function defaultProfile(user, extra = {}) {
   }
 }
 
-// Create the profile node if it doesn't already exist.
-// Best-effort: if the database is unreachable, we DON'T fail sign-in — we
-// return a local default and let the app sync once the DB is reachable.
+// Create the Firestore profile doc if it doesn't already exist.
+// Best-effort: if Firestore is unreachable (DB not created yet, blocked by an
+// extension, offline), we DON'T fail sign-in — we return a local default and
+// let the app sync the real doc once Firestore is reachable.
 export async function ensureProfile(user, extra = {}) {
   const fallback = defaultProfile(user, extra)
   try {
-    const r = ref(db, `users/${user.uid}`)
-    const snap = await get(r)
+    const ref = doc(db, 'users', user.uid)
+    const snap = await getDoc(ref)
     if (!snap.exists()) {
-      await set(r, fallback)
+      await setDoc(ref, fallback)
       return fallback
     }
-    return snap.val()
+    return snap.data()
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn('[DevSocio] DB profile unavailable, using local default:', err?.message)
+    console.warn('[DevSocio] Firestore profile unavailable, using local default:', err?.message)
     return fallback
   }
 }

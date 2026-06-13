@@ -1,24 +1,23 @@
-// Firebase initialization (PRD §8.1 — Firebase Auth + Realtime Database).
+// Firebase initialization (PRD §8.1 — Firebase Auth + Firestore).
 // The web API key is safe to ship in the client; access is gated by
-// Realtime Database Security Rules, not by hiding this config.
+// Firestore Security Rules, not by hiding this config.
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, GithubAuthProvider } from 'firebase/auth'
-import { getDatabase } from 'firebase/database'
+import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyAceETo8ccYoGcyYLCoamNVAlGTfuNn8Pk',
-  authDomain: 'devsocio.firebaseapp.com',
-  databaseURL: 'https://devsocio-default-rtdb.firebaseio.com',
-  projectId: 'devsocio',
-  storageBucket: 'devsocio.firebasestorage.app',
-  messagingSenderId: '839165467546',
-  appId: '1:839165467546:web:d1a059f8691e81c98bf823',
-  measurementId: 'G-C8XFPG5P9W',
+  apiKey: 'AIzaSyCp0aAVeKzptv4HqSicEghuX8KEP4rVjFQ',
+  authDomain: 'devsocio-8f0c0.firebaseapp.com',
+  projectId: 'devsocio-8f0c0',
+  storageBucket: 'devsocio-8f0c0.firebasestorage.app',
+  messagingSenderId: '340656300838',
+  appId: '1:340656300838:web:43b7a0334098736e1057e7',
+  measurementId: 'G-9K4M5GTKC1',
 }
 
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-export const db = getDatabase(app)
+export const db = getFirestore(app)
 
 export const googleProvider = new GoogleAuthProvider()
 export const githubProvider = new GithubAuthProvider()
