@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DevSocio design system — PRD §6 */
+:root {
+  --color-primary: #6c63ff;
+  --color-accent: #00e5ff;
+  --color-bg: #0d0d0d;
+  --color-surface: #16161e;
+  --color-border: #2a2a3d;
+  --color-text-primary: #eeeeff;
+  --color-text-muted: #8888aa;
+  --color-success: #00c896;
+  --color-warning: #ffb800;
+  --color-danger: #ff4c4c;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-bg text-text-primary font-body antialiased;
+    margin: 0;
+  }
+  ::selection {
+    background: rgba(108, 99, 255, 0.4);
+  }
+  /* Custom scrollbar — dev-coded feel */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3a52;
+  }
+}
+
+@layer components {
+  /* Buttons (24px radius pills — §6.4) */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn px-5 py-2.5 text-sm font-semibold
+           transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-[#7d75ff] shadow-[0_0_20px_-6px_#6c63ff];
+  }
+  .btn-ghost {
+    @apply btn bg-surface text-text-primary border border-border hover:border-primary/60;
+  }
+  .btn-accent {
+    @apply btn bg-accent text-bg hover:brightness-110;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-surface border border-border rounded-card p-4;
+  }
+
+  /* Inputs (8px radius — §6.4) */
+  .input {
+    @apply w-full bg-bg border border-border rounded-input px-3.5 py-2.5 text-sm text-text-primary
+           placeholder:text-text-muted outline-none transition-colors
+           focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+
+  /* Tech-stack pills (999px — §6.4) */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-semibold leading-none;
+  }
+
+  /* Shimmer skeleton (§6.5.2) */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #1c1c28 0px,
+      #25253a 40px,
+      #1c1c28 80px
+    );
+    background-size: 600px 100%;
+    @apply animate-shimmer rounded;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium text-text-muted
+           transition-colors hover:bg-bg hover:text-text-primary;
+  }
+  .nav-link-active {
+    @apply bg-bg text-text-primary;
+  }
+}
+
+/* Focus-visible accessibility (§11 WCAG 2.1 AA) */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
