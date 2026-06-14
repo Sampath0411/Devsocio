@@ -10,11 +10,17 @@ service cloud.firestore {
     function isUser(uid) {
       return signedIn() && request.auth.uid == uid;
     }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'sampathlox@gmail.com';
+    }
 
     // ---- Users & their private subcollections ----
     match /users/{uid} {
       allow read: if signedIn();
-      allow create, update: if isUser(uid);
+      // Owner edits their own profile; the admin may update any profile
+      // (e.g. grant credits from the Admin panel).
+      allow create: if isUser(uid);
+      allow update: if isUser(uid) || isAdmin();
       allow delete: if false;
 
       // Bookmarks and follow edges belong to the user. Follower/following

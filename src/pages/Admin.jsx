@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { useStore } from '../store/useStore'
+import { useToast } from '../components/Toast'
 import { Avatar } from '../components/ui'
+import { changeCredits } from '../lib/db'
 import {
-  ShieldAlert, Users, FileText, Mail, Coins,
+  ShieldAlert, Users, FileText, Mail, Coins, Plus,
   GithubMark, GoogleMark,
 } from '../components/icons'
 
@@ -20,6 +23,67 @@ const providerKey = (u) => {
   return 'email'
 }
 
+// One member row with credit-granting controls (admin only).
+function MemberRow({ u }) {
+  const toast = useToast()
+  const [amount, setAmount] = useState('')
+  const [busy, setBusy] = useState(false)
+  const meta = PROVIDERS.find((p) => p.key === providerKey(u))
+  const Icon = meta.Icon
+
+  const grant = async (value) => {
+    const delta = Number(value)
+    if (!delta) return
+    setBusy(true)
+    try {
+      await changeCredits(u.uid, delta) // live credits update reflects via onSnapshot
+      toast(`${delta > 0 ? '+' : ''}${delta} credits → ${u.displayName}`, { icon: Coins })
+      setAmount('')
+    } catch {
+      toast('Could not update credits (check admin rules)', { tone: 'warning' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <Avatar src={u.avatar} alt={u.displayName} size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{u.displayName}</p>
+        <p className="truncate text-xs text-text-muted">@{u.username}{u.email ? ` · ${u.email}` : ''}</p>
+      </div>
+
+      <span className="flex items-center gap-1 text-sm font-bold text-warning">
+        <Coins size={14} /> {u.credits || 0}
+      </span>
+
+      <span className="hidden pill border border-border sm:inline-flex" style={{ color: meta.color }}>
+        <Icon size={12} /> {meta.label}
+      </span>
+
+      {/* grant credits */}
+      <div className="flex items-center gap-1">
+        <button onClick={() => grant(50)} disabled={busy}
+          className="btn-ghost !px-2 !py-1.5 text-xs">+50</button>
+        <button onClick={() => grant(100)} disabled={busy}
+          className="btn-ghost !px-2 !py-1.5 text-xs">+100</button>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="amt"
+          className="input !w-16 !py-1.5 text-xs"
+        />
+        <button onClick={() => grant(amount)} disabled={busy || !amount}
+          className="btn-primary !px-2.5 !py-1.5 text-xs">
+          <Plus size={12} /> Add
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Admin() {
   const { users, posts } = useStore()
 
@@ -36,10 +100,8 @@ export default function Admin() {
     { label: 'Total Credits', value: users.reduce((s, u) => s + (u.credits || 0), 0), Icon: Coins },
   ]
 
-  // Most recent members (createdAt desc when available).
-  const recent = [...users]
-    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-    .slice(0, 8)
+  // All members, most recent first.
+  const members = [...users].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -89,27 +151,11 @@ export default function Admin() {
         </p>
       </div>
 
-      {/* Recent members with the method they used */}
-      <h2 className="mb-3 font-display text-sm font-bold">Recent members</h2>
+      {/* Manage members — grant credits */}
+      <h2 className="mb-3 font-display text-sm font-bold">Manage members &amp; credits</h2>
       <div className="card divide-y divide-border p-0">
-        {recent.map((u) => {
-          const pk = providerKey(u)
-          const meta = PROVIDERS.find((p) => p.key === pk)
-          const Icon = meta.Icon
-          return (
-            <div key={u.uid} className="flex items-center gap-3 px-4 py-3">
-              <Avatar src={u.avatar} alt={u.displayName} size={36} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{u.displayName}</p>
-                <p className="truncate text-xs text-text-muted">@{u.username}{u.email ? ` · ${u.email}` : ''}</p>
-              </div>
-              <span className="pill border border-border" style={{ color: meta.color }}>
-                <Icon size={12} /> {meta.label}
-              </span>
-            </div>
-          )
-        })}
-        {recent.length === 0 && (
+        {members.map((u) => <MemberRow key={u.uid} u={u} />)}
+        {members.length === 0 && (
           <p className="px-4 py-6 text-center text-sm text-text-muted">No members yet.</p>
         )}
       </div>
