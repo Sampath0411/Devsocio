@@ -4,7 +4,6 @@ import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { logout as fbLogout, isAdmin } from '../lib/auth'
 import { Avatar } from './ui'
-import { TRENDING_HASHTAGS } from '../data/mock'
 import {
   Home, Compass, Lightbulb, Mail, Bell, Search, Plus,
   User, Coins, Settings, LogOut, ShieldAlert, Code2, UserPlus,
@@ -154,14 +153,22 @@ function TopNav() {
 
 // Right rail (suggested devs / trending / leaderboard) on wide screens.
 function RightPanel() {
-  const { following, toggleFollow, users, user: me } = useStore()
+  const { following, toggleFollow, users, posts, user: me } = useStore()
   const people = users.filter((u) => u.uid !== me?.uid)
   const leaderboard = [...users]
     .sort((a, b) => (b.credits || 0) - (a.credits || 0))
     .slice(0, 5)
     .map((u, i) => ({ rank: i + 1, user: u, credits: u.credits || 0 }))
+  // Trending hashtags tallied from real posts.
+  const trendCounts = {}
+  for (const p of posts) for (const h of p.hashtags || []) trendCounts[h] = (trendCounts[h] || 0) + 1
+  const trending = Object.entries(trendCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([tag, n]) => ({ tag, posts: n }))
   return (
     <aside className="sticky top-[88px] hidden h-fit w-72 shrink-0 space-y-4 lg:block">
+      {people.length > 0 && (
       <div className="card">
         <h3 className="mb-3 flex items-center gap-1.5 font-display text-sm font-bold">
           Suggested for you
@@ -192,11 +199,13 @@ function RightPanel() {
           ))}
         </div>
       </div>
+      )}
 
+      {trending.length > 0 && (
       <div className="card">
         <h3 className="mb-3 font-display text-sm font-bold">Trending</h3>
         <ul className="space-y-2">
-          {TRENDING_HASHTAGS.map((h) => (
+          {trending.map((h) => (
             <li key={h.tag} className="flex items-center justify-between text-sm">
               <span className="font-medium text-accent">{h.tag}</span>
               <span className="text-xs text-text-muted">{h.posts} posts</span>
@@ -204,7 +213,9 @@ function RightPanel() {
           ))}
         </ul>
       </div>
+      )}
 
+      {leaderboard.length > 0 && (
       <div className="card">
         <h3 className="mb-3 font-display text-sm font-bold">Leaderboard</h3>
         <ol className="space-y-2">
@@ -218,6 +229,7 @@ function RightPanel() {
           ))}
         </ol>
       </div>
+      )}
     </aside>
   )
 }

@@ -35,25 +35,32 @@ Auth and user data are **live on Firebase** (project `devsocio`):
 If Firestore/providers aren't set up yet, the app degrades gracefully (auth still works;
 profile falls back to a default and the feed/explore/ideas show seeded sample data).
 
-## AI features (OpenRouter)
+## AI features (OpenRouter, server-side)
 
-The AI features — post analysis, idea scoring, and bio generation (PRD §4) — call
-**OpenRouter** directly from the client (`src/lib/ai.js`). Configure them via env:
+Post analysis, idea scoring, and bio generation (PRD §4) run through a **Vercel
+serverless function** (`api/ai.js`) that proxies OpenRouter. The API key lives
+**only on the server** — it is never bundled into the browser. The client
+(`src/lib/ai.js`) just POSTs to `/api/ai`.
 
-```bash
-cp .env.example .env   # then add your key
-```
+**Production (Vercel → Settings → Environment Variables):**
 
 ```ini
-VITE_OPENROUTER_API_KEY=sk-or-v1-...
-VITE_OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+OPENROUTER_API_KEY=sk-or-v1-...          # server-only, no VITE_ prefix
+OPENROUTER_MODEL=openai/gpt-oss-120b:free   # optional; has a sensible default
 ```
 
-> ⚠️ **Security:** this is a static client app, so any `VITE_`-prefixed value is bundled
-> into the shipped JS and visible in the browser. That's fine for a prototype/hackathon,
-> but before a real launch move these calls behind a server proxy (a Cloud Function) so
-> the key stays secret. Every AI call falls back to a sensible local result if the key is
-> missing or the request fails, so the UI never breaks.
+**Local dev** (`npm run dev` has no serverless runtime, so it calls OpenRouter
+directly using a `VITE_` key — this branch is stripped from production builds):
+
+```bash
+cp .env.example .env
+# VITE_OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+The function tries a primary free model, retries once on a 429, then falls
+through other free models — and every caller has a local fallback, so the UI
+never breaks. (Free models have daily caps; add a small OpenRouter credit
+balance for reliable, higher limits.)
 
 ## Deploy to Firebase Hosting
 
@@ -95,8 +102,8 @@ React 18 + Vite · Tailwind CSS · Framer Motion · Zustand · React Router
 
 ## Now wired to the backend
 
-Beyond auth/profiles/credits, the following are live on Firestore (with mock fallback
-when a collection is empty, so demos never render blank):
+Everything below is **live Firestore data only — no demo/mock fallback**. Empty
+collections render clean empty states, never seeded placeholders:
 
 - **Likes / saves / follows** — per-user docs + atomic counters; hydrated in real time
   via `onSnapshot` (`subscribeMyLikes` / `subscribeMySaves` / `subscribeMyFollowing`).

@@ -1,6 +1,6 @@
 // Firestore data layer: real-time profiles, credits, posts, social graph,
-// comments, ideas, notifications and DMs. Every read degrades gracefully to
-// seeded mock data so the prototype keeps working before collections exist.
+// comments, ideas, notifications and DMs. All reads return live data only —
+// empty when a collection has no documents (no demo/mock fallback).
 import {
   doc,
   getDoc,
@@ -20,12 +20,6 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase'
-import {
-  POSTS as MOCK_POSTS,
-  IDEAS as MOCK_IDEAS,
-  NOTIFICATIONS as MOCK_NOTIFICATIONS,
-  CONVERSATIONS as MOCK_CONVERSATIONS,
-} from '../data/mock'
 
 // ----------------------------------------------------------------------------
 // Profiles & credits
@@ -75,21 +69,17 @@ export function subscribeUsers(onData, max = 200) {
 // Posts & feed
 // ----------------------------------------------------------------------------
 
-// Live feed. Falls back to seeded mock posts if the collection is empty
-// or unreadable, so the feed is never blank in the prototype.
+// Live feed — real posts only, newest first.
 export function subscribePosts(onData) {
   try {
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50))
     return onSnapshot(
       q,
-      (snap) => {
-        const live = snap.docs.map((d) => ({ postId: d.id, ...d.data() }))
-        onData(live.length ? live : MOCK_POSTS)
-      },
-      () => onData(MOCK_POSTS),
+      (snap) => onData(snap.docs.map((d) => ({ postId: d.id, ...d.data() }))),
+      () => onData([]),
     )
   } catch {
-    onData(MOCK_POSTS)
+    onData([])
     return () => {}
   }
 }
@@ -232,14 +222,11 @@ export function subscribeIdeas(onData) {
   try {
     return onSnapshot(
       query(collection(db, 'ideas'), orderBy('createdAt', 'desc'), limit(50)),
-      (snap) => {
-        const live = snap.docs.map((d) => ({ ideaId: d.id, ...d.data() }))
-        onData(live.length ? live : MOCK_IDEAS)
-      },
-      () => onData(MOCK_IDEAS),
+      (snap) => onData(snap.docs.map((d) => ({ ideaId: d.id, ...d.data() }))),
+      () => onData([]),
     )
   } catch {
-    onData(MOCK_IDEAS)
+    onData([])
     return () => {}
   }
 }
@@ -265,14 +252,11 @@ export function subscribeNotifications(uid, onData) {
   try {
     return onSnapshot(
       query(collection(db, 'users', uid, 'notifications'), orderBy('createdAt', 'desc'), limit(50)),
-      (snap) => {
-        const live = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        onData(live.length ? live : MOCK_NOTIFICATIONS)
-      },
-      () => onData(MOCK_NOTIFICATIONS),
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => onData([]),
     )
   } catch {
-    onData(MOCK_NOTIFICATIONS)
+    onData([])
     return () => {}
   }
 }
@@ -300,14 +284,11 @@ export function subscribeConversations(uid, onData) {
   try {
     return onSnapshot(
       query(collection(db, 'conversations'), where('members', 'array-contains', uid)),
-      (snap) => {
-        const live = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        onData(live.length ? live : MOCK_CONVERSATIONS)
-      },
-      () => onData(MOCK_CONVERSATIONS),
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => onData([]),
     )
   } catch {
-    onData(MOCK_CONVERSATIONS)
+    onData([])
     return () => {}
   }
 }

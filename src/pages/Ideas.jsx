@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { Avatar, StackPill, AIBadge, AILoader } from '../components/ui'
+import { Avatar, StackPill, AIBadge, AILoader, EmptyState } from '../components/ui'
 import { subscribeIdeas, createIdea, investInIdea } from '../lib/db'
 import { scoreIdea } from '../lib/ai'
 import { Coins, MessageCircle, Handshake, Lightbulb, Check, Circle } from '../components/icons'
@@ -173,6 +173,9 @@ export default function Ideas() {
             <IdeaCard key={idea.ideaId} idea={idea} onInvest={() => invest(idea)} />
           ))}
         </AnimatePresence>
+        {sorted.length === 0 && (
+          <EmptyState icon={Lightbulb} title="No ideas yet — post the first one above and get an instant AI score." />
+        )}
       </div>
     </div>
   )

@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import PostCard from '../components/PostCard'
 import CreatePostModal from '../components/CreatePostModal'
-import { PostSkeleton, BouncingDots, Avatar } from '../components/ui'
-import { Plus, Rocket } from '../components/icons'
+import { PostSkeleton, BouncingDots, Avatar, EmptyState } from '../components/ui'
+import { Plus, Rocket, PenSquare } from '../components/icons'
 
 // Dev-specific story reactions (PRD §3.4) — now icon-based, not emoji.
 import { Rocket as RocketR, Skull, Flame, Brain, Zap, Check } from '../components/icons'
@@ -82,6 +82,13 @@ export default function Feed() {
         <div className="space-y-4">
           <PostSkeleton /><PostSkeleton /><PostSkeleton />
         </div>
+      ) : posts.length === 0 ? (
+        <EmptyState
+          icon={PenSquare}
+          title="No posts yet — be the first to share something with the community."
+          cta="Create a post"
+          onCta={() => setCreateOpen(true)}
+        />
       ) : (
         <div className="space-y-4">
           {posts.map((p) => <PostCard key={p.postId} post={p} />)}

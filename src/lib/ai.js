@@ -1,69 +1,75 @@
-// AI layer — DevSocio's "AI-native" features (PRD §4) powered by OpenRouter.
+// AI layer — DevSocio's "AI-native" features (PRD §4).
 //
-// NOTE: this is a static client app, so the API key ships in the bundle. That's
-// acceptable for a prototype but NOT for production — move these calls behind a
-// server proxy before a real launch. Every function degrades gracefully: if the
-// key is missing or the request fails, callers get a sensible local fallback so
-// the UI never breaks.
-
-const API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || ''
-const MODEL = import.meta.env.VITE_OPENROUTER_MODEL || 'openai/gpt-oss-120b:free'
-
-// Free models are shared and frequently rate-limited (429). We try the
-// configured model first, then fall through these alternates so a single
-// throttled provider doesn't take the AI features down.
-const FALLBACK_MODELS = [
-  'openai/gpt-oss-120b:free',
-  'openai/gpt-oss-20b:free',
-  'google/gemma-4-31b-it:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-]
-
-export const aiEnabled = () => Boolean(API_KEY)
+// In production the browser calls our own serverless proxy at /api/ai, which
+// holds the OpenRouter key server-side (see api/ai.js) — the key is NEVER in the
+// shipped bundle. During local `vite dev` (no serverless runtime) we call
+// OpenRouter directly using a VITE_ key; that branch is dead-code-eliminated
+// from production builds, so the dev key never ships. Every caller has a local
+// fallback so the UI never breaks.
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// POST one model; returns the text, or throws an Error carrying the status code.
-async function callModel(model, messages, { temperature, maxTokens }) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-      // Optional but recommended by OpenRouter for attribution/rankings.
-      'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://devsocio.app',
-      'X-Title': 'DevSocio',
-    },
-    body: JSON.stringify({ model, temperature, max_tokens: maxTokens, messages }),
-  })
+export const aiEnabled = () => true
 
+// --- Production path: call our serverless proxy (key stays on the server) ---
+async function chatViaProxy(messages, { temperature, maxTokens }) {
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, temperature, maxTokens }),
+  })
   if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    const err = new Error(`OpenRouter ${res.status}: ${detail.slice(0, 160)}`)
-    err.status = res.status
-    throw err
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `AI request failed (${res.status})`)
   }
   const data = await res.json()
-  const text = data?.choices?.[0]?.message?.content?.trim()
-  if (!text) throw new Error('OpenRouter returned an empty response')
-  return text
+  if (!data.text) throw new Error('Empty AI response')
+  return data.text
 }
 
-// Low-level chat call. Tries the configured model + fallbacks, retrying once
-// on a 429 (rate limit) per model. Returns the assistant message text, or throws.
-async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
-  if (!API_KEY) throw new Error('OpenRouter API key not configured (VITE_OPENROUTER_API_KEY)')
+// --- Dev-only path: call OpenRouter directly so `vite dev` works offline of Vercel ---
+async function chatDirect(messages, { temperature, maxTokens }) {
+  const API_URL = 'https://openrouter.ai/api/v1/chat/completions'
+  const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || ''
+  const MODEL = import.meta.env.VITE_OPENROUTER_MODEL || 'openai/gpt-oss-120b:free'
+  const FALLBACK_MODELS = [
+    'openai/gpt-oss-120b:free',
+    'openai/gpt-oss-20b:free',
+    'google/gemma-4-31b-it:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+  ]
+  if (!API_KEY) throw new Error('Set VITE_OPENROUTER_API_KEY in .env for local AI dev')
+
+  const once = async (model) => {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.origin,
+        'X-Title': 'DevSocio',
+      },
+      body: JSON.stringify({ model, temperature, max_tokens: maxTokens, messages }),
+    })
+    if (!res.ok) {
+      const e = new Error(`OpenRouter ${res.status}`)
+      e.status = res.status
+      throw e
+    }
+    const data = await res.json()
+    const text = data?.choices?.[0]?.message?.content?.trim()
+    if (!text) throw new Error('Empty response')
+    return text
+  }
 
   const candidates = [MODEL, ...FALLBACK_MODELS.filter((m) => m !== MODEL)]
   let lastErr
   for (const model of candidates) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        return await callModel(model, messages, { temperature, maxTokens })
+        return await once(model)
       } catch (err) {
         lastErr = err
-        // Retry the same model once on a transient rate limit, else move on.
         if (err.status === 429 && attempt === 0) {
           await sleep(1200)
           continue
@@ -73,6 +79,12 @@ async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
     }
   }
   throw lastErr || new Error('All OpenRouter models failed')
+}
+
+// Low-level chat call. Returns the assistant message text, or throws.
+async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
+  if (import.meta.env.DEV) return chatDirect(messages, { temperature, maxTokens })
+  return chatViaProxy(messages, { temperature, maxTokens })
 }
 
 // Pull the first JSON object/array out of a model response (handles ```json fences).

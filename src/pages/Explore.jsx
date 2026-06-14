@@ -2,16 +2,26 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Avatar, LevelBadge, StackPill, AIBadge, EmptyState } from '../components/ui'
-import { TRENDING_HASHTAGS } from '../data/mock'
 import { Search, Handshake, Rocket, Star, Sparkles } from '../components/icons'
 
 const FILTERS = ['All', 'Open to Collab', 'Looking for Co-founder', 'Beginner-friendly', 'Trending']
 
+// Tally hashtags across real posts → top trending tags.
+function trendingFrom(posts) {
+  const counts = {}
+  for (const p of posts) for (const h of p.hashtags || []) counts[h] = (counts[h] || 0) + 1
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([tag, n]) => ({ tag, posts: n }))
+}
+
 export default function Explore() {
-  const { following, toggleFollow, users, user: me } = useStore()
+  const { following, toggleFollow, users, posts, user: me } = useStore()
   const [params] = useSearchParams()
   const [q, setQ] = useState(params.get('q') || '')
   const [filter, setFilter] = useState('All')
+  const trending = trendingFrom(posts)
 
   // Show everyone except yourself.
   const people = users.filter((u) => u.uid !== me?.uid)
@@ -105,16 +115,18 @@ export default function Explore() {
         </div>
       )}
 
-      <div className="card mt-5">
-        <h2 className="mb-3 font-display text-sm font-bold">Trending Hashtags</h2>
-        <div className="flex flex-wrap gap-2">
-          {TRENDING_HASHTAGS.map((h) => (
-            <span key={h.tag} className="pill border border-border text-accent">
-              {h.tag} <span className="text-text-muted">{h.posts}</span>
-            </span>
-          ))}
+      {trending.length > 0 && (
+        <div className="card mt-5">
+          <h2 className="mb-3 font-display text-sm font-bold">Trending Hashtags</h2>
+          <div className="flex flex-wrap gap-2">
+            {trending.map((h) => (
+              <span key={h.tag} className="pill border border-border text-accent">
+                {h.tag} <span className="text-text-muted">{h.posts}</span>
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
