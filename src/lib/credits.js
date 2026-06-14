@@ -4,14 +4,14 @@
 // the server isn't configured yet, so the app keeps working pre-lockdown.
 import { auth } from '../firebase'
 
-export async function earnCredits(action) {
+export async function earnCredits(action, extra = {}) {
   const user = auth.currentUser
   if (!user) throw new Error('Not signed in')
   const token = await user.getIdToken()
   const res = await fetch('/api/credits', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, ...extra }),
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
