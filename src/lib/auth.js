@@ -38,6 +38,7 @@ function defaultProfile(user, extra = {}) {
     devLevel: extra.devLevel || 'Builder',
     techStack: extra.techStack || ['React'],
     provider: providerOf(user), // how they signed up (for Admin analytics)
+    referredBy: extra.referredBy || null, // referrer's username (PRD §5.3)
     credits: 100, // +100 on signup (PRD §5.1)
     followersCount: 0,
     followingCount: 0,
@@ -76,10 +77,10 @@ export async function ensureProfile(user, extra = {}) {
   }
 }
 
-export async function emailSignup({ email, password, username, displayName, devLevel, techStack }) {
+export async function emailSignup({ email, password, username, displayName, devLevel, techStack, referredBy }) {
   const cred = await createUserWithEmailAndPassword(auth, email, password)
   if (displayName) await updateProfile(cred.user, { displayName })
-  await ensureProfile(cred.user, { username, displayName, devLevel, techStack })
+  await ensureProfile(cred.user, { username, displayName, devLevel, techStack, referredBy })
   return cred.user
 }
 
@@ -89,15 +90,15 @@ export async function emailLogin({ email, password }) {
   return cred.user
 }
 
-export async function googleLogin() {
+export async function googleLogin(extra = {}) {
   const cred = await signInWithPopup(auth, googleProvider)
-  await ensureProfile(cred.user)
+  await ensureProfile(cred.user, extra)
   return cred.user
 }
 
-export async function githubLogin() {
+export async function githubLogin(extra = {}) {
   const cred = await signInWithPopup(auth, githubProvider)
-  await ensureProfile(cred.user)
+  await ensureProfile(cred.user, extra)
   return cred.user
 }
 

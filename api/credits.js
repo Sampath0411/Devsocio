@@ -1,14 +1,12 @@
-// Vercel Serverless Function — trusted credit EARNING (PRD §5.1).
+// Vercel Serverless Function — trusted credit earning + referrals (PRD §5).
 //
-// Why this exists: anything the browser can do, a user can replay in the
-// console — so credits cannot be earned client-side without being cheatable.
-// This function runs server-side with the Firebase Admin SDK (which bypasses
-// security rules), verifies the caller's identity, and applies ONLY whitelisted
-// award amounts that the client cannot tamper with.
+// Anything the browser can do, a user can replay — so credit EARNING runs here
+// with the Firebase Admin SDK (bypasses rules), verifies the caller, and applies
+// only server-defined amounts. Referral payouts (+150 each on signup, +50 to the
+// referrer on the referred user's first post) are enforced once via flags.
 //
-// Setup (Vercel → Settings → Environment Variables):
-//   FIREBASE_SERVICE_ACCOUNT = <the full service-account JSON, pasted as one value>
-//   (Firebase Console → Project settings → Service accounts → Generate new private key)
+// Vercel → Settings → Environment Variables:
+//   FIREBASE_SERVICE_ACCOUNT = <full service-account JSON pasted as one value>
 
 import admin from 'firebase-admin'
 
@@ -21,11 +19,13 @@ function getApp() {
   return admin.initializeApp({ credential: admin.credential.cert(cred) })
 }
 
-// Server-defined award rules — the client only names an action, never an amount.
-const EARN = {
-  post_reward: { amount: 30 },
-  daily_login: { amount: 5, cooldownMs: 20 * 60 * 60 * 1000, stamp: 'lastDailyAt' },
-  profile_complete: { amount: 50, once: 'profileBonusPaid' },
+const inc = (n) => admin.firestore.FieldValue.increment(n)
+const now = () => admin.firestore.FieldValue.serverTimestamp()
+
+async function uidByUsername(db, username) {
+  if (!username) return null
+  const snap = await db.collection('users').where('username', '==', username).limit(1).get()
+  return snap.empty ? null : snap.docs[0].id
 }
 
 export default async function handler(req, res) {
@@ -37,45 +37,80 @@ export default async function handler(req, res) {
     const app = getApp()
     const db = app.firestore()
 
-    const authz = req.headers.authorization || ''
-    const token = authz.startsWith('Bearer ') ? authz.slice(7) : ''
+    const token = (req.headers.authorization || '').replace(/^Bearer /, '')
     if (!token) {
       res.status(401).json({ error: 'Missing auth token' })
       return
     }
-    const decoded = await app.auth().verifyIdToken(token)
-    const uid = decoded.uid
-
+    const { uid } = await app.auth().verifyIdToken(token)
     const { action } = req.body || {}
-    const rule = EARN[action]
-    if (!rule) {
-      res.status(400).json({ error: 'Unknown credit action' })
+    const ref = db.collection('users').doc(uid)
+
+    // --- Daily login (+5, once per ~day) ---
+    if (action === 'daily_login') {
+      const out = await db.runTransaction(async (tx) => {
+        const d = (await tx.get(ref)).data() || {}
+        const last = d.lastDailyAt?.toMillis ? d.lastDailyAt.toMillis() : 0
+        if (Date.now() - last < 20 * 60 * 60 * 1000) return { credits: d.credits || 0, awarded: 0 }
+        tx.update(ref, { credits: inc(5), lastDailyAt: now() })
+        return { credits: (d.credits || 0) + 5, awarded: 5 }
+      })
+      res.status(200).json(out)
       return
     }
 
-    const ref = db.collection('users').doc(uid)
-    const result = await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref)
-      if (!snap.exists) throw new Error('Profile not found')
-      const data = snap.data()
+    // --- Profile completion (+50, once) ---
+    if (action === 'profile_complete') {
+      const out = await db.runTransaction(async (tx) => {
+        const d = (await tx.get(ref)).data() || {}
+        if (d.profileBonusPaid) return { credits: d.credits || 0, awarded: 0 }
+        tx.update(ref, { credits: inc(50), profileBonusPaid: true })
+        return { credits: (d.credits || 0) + 50, awarded: 50 }
+      })
+      res.status(200).json(out)
+      return
+    }
 
-      // Once-only awards (e.g. profile completion bonus).
-      if (rule.once && data[rule.once]) return { credits: data.credits || 0, awarded: 0 }
-
-      // Cooldown awards (e.g. daily login).
-      if (rule.cooldownMs && rule.stamp) {
-        const last = data[rule.stamp]?.toMillis ? data[rule.stamp].toMillis() : 0
-        if (Date.now() - last < rule.cooldownMs) return { credits: data.credits || 0, awarded: 0 }
+    // --- Referral signup (+150 to both, once) ---
+    if (action === 'referral_signup') {
+      const d0 = (await ref.get()).data() || {}
+      if (d0.referralPaid || !d0.referredBy) {
+        res.status(200).json({ credits: d0.credits || 0, awarded: 0 })
+        return
       }
+      const refUid = await uidByUsername(db, d0.referredBy)
+      const out = await db.runTransaction(async (tx) => {
+        const d = (await tx.get(ref)).data() || {}
+        if (d.referralPaid) return { credits: d.credits || 0, awarded: 0 }
+        tx.update(ref, { credits: inc(150), referralPaid: true })
+        if (refUid && refUid !== uid) tx.update(db.collection('users').doc(refUid), { credits: inc(150) })
+        return { credits: (d.credits || 0) + 150, awarded: 150 }
+      })
+      res.status(200).json(out)
+      return
+    }
 
-      const update = { credits: admin.firestore.FieldValue.increment(rule.amount) }
-      if (rule.stamp) update[rule.stamp] = admin.firestore.FieldValue.serverTimestamp()
-      if (rule.once) update[rule.once] = true
-      tx.update(ref, update)
-      return { credits: (data.credits || 0) + rule.amount, awarded: rule.amount }
-    })
+    // --- Post reward (+30) + referrer first-post bonus (+50, once) ---
+    if (action === 'post_reward') {
+      const pd = (await ref.get()).data() || {}
+      const refUid = pd.referredBy && !pd.referralFirstPostPaid ? await uidByUsername(db, pd.referredBy) : null
+      const out = await db.runTransaction(async (tx) => {
+        const d = (await tx.get(ref)).data() || {}
+        const update = { credits: inc(30) }
+        let referrerBonus = 0
+        if (refUid && refUid !== uid && !d.referralFirstPostPaid) {
+          update.referralFirstPostPaid = true
+          tx.update(db.collection('users').doc(refUid), { credits: inc(50) })
+          referrerBonus = 50
+        }
+        tx.update(ref, update)
+        return { credits: (d.credits || 0) + 30, awarded: 30, referrerBonus }
+      })
+      res.status(200).json(out)
+      return
+    }
 
-    res.status(200).json(result)
+    res.status(400).json({ error: 'Unknown credit action' })
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Credit request failed' })
   }

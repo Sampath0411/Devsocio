@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { emailSignup, googleLogin, githubLogin, authErrorMessage } from '../lib/auth'
+import { earnCredits } from '../lib/credits'
 import { AuthShell, Divider } from './Login'
 import { StackPill } from '../components/ui'
 import { STACK_COLORS } from '../data/mock'
@@ -28,11 +29,23 @@ export default function Signup() {
       techStack: f.techStack.includes(s) ? f.techStack.filter((x) => x !== s) : [...f.techStack, s],
     }))
 
+  // Trigger the server-side referral payout (+150 to both) once signed in.
+  const claimReferral = async () => {
+    if (!form.ref) return
+    try {
+      const { awarded } = await earnCredits('referral_signup')
+      if (awarded) toast('+150 referral bonus applied!', { tone: 'success' })
+    } catch {
+      /* server not configured yet — referral applies once it is */
+    }
+  }
+
   const oauth = async (fn) => {
     setBusy(true)
     try {
-      await fn()
+      await fn({ referredBy: form.ref || null })
       toast('+100 credits — welcome to DevSocio!', { icon: Coins })
+      await claimReferral()
       navigate('/feed')
     } catch (err) {
       toast(authErrorMessage(err), { tone: 'warning' })
@@ -45,9 +58,9 @@ export default function Signup() {
     e?.preventDefault()
     setBusy(true)
     try {
-      await emailSignup(form)
+      await emailSignup({ ...form, referredBy: form.ref || null })
       toast('+100 credits — welcome to DevSocio!', { icon: Coins })
-      if (form.ref) setTimeout(() => toast('+150 referral bonus applied!', { tone: 'success' }), 700)
+      await claimReferral()
       navigate('/feed')
     } catch (err) {
       toast(authErrorMessage(err), { tone: 'warning' })
