@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://devsocio-8f0c0.web.app/sitemap.xml
