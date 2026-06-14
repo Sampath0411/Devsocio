@@ -3,13 +3,8 @@
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      { "source": "/api/ai", "function": { "functionId": "ai", "region": "us-central1" } },
-      { "source": "/api/credits", "function": { "functionId": "credits", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ]
-  },
-  "functions": {
-    "source": "functions"
   },
   "firestore": {
     "rules": "firestore.rules",

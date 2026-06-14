@@ -81,12 +81,11 @@ async function chatDirect(messages, { temperature, maxTokens }) {
   throw lastErr || new Error('All OpenRouter models failed')
 }
 
-// Low-level chat call. Production goes through the secure Cloud Function
-// (/api/ai) so the key never ships in the bundle. Local dev calls OpenRouter
-// directly (that branch is stripped from production builds).
+// Low-level chat call. On static hosting there's no server, so we call
+// OpenRouter directly. (If a /api/ai proxy is later added — Vercel or Cloud
+// Functions — switch this to chatViaProxy to keep the key off the client.)
 async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
-  if (import.meta.env.DEV) return chatDirect(messages, { temperature, maxTokens })
-  return chatViaProxy(messages, { temperature, maxTokens })
+  return chatDirect(messages, { temperature, maxTokens })
 }
 
 // Pull the first JSON object/array out of a model response (handles ```json fences).
