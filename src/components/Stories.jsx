@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
-import { subscribeStories, createStory, reactToStory } from '../lib/db'
+import { subscribeStories, createStory, reactToStory, markStoryViewed } from '../lib/db'
 import { timeAgo } from '../lib/time'
 import { Avatar } from './ui'
 import { Plus, X } from './icons'
@@ -57,6 +57,13 @@ export default function Stories() {
     if (viewer.index < viewer.items.length - 1) setViewer({ ...viewer, index: viewer.index + 1 })
     else setViewer(null)
   }
+
+  // Record that the signed-in user has seen the current story (PRD §3.4).
+  useEffect(() => {
+    if (current && firebaseUser && !(current.viewers || []).includes(firebaseUser.uid)) {
+      markStoryViewed(current.storyId, firebaseUser.uid)
+    }
+  }, [current, firebaseUser])
 
   return (
     <>

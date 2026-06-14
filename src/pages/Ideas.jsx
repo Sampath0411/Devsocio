@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar, StackPill, AIBadge, AILoader, EmptyState } from '../components/ui'
-import { subscribeIdeas, createIdea, investInIdea } from '../lib/db'
+import { subscribeIdeas, createIdea, investInIdea, requestCollab } from '../lib/db'
 import { scoreIdea } from '../lib/ai'
 import { timeAgo } from '../lib/time'
 import { Coins, MessageCircle, Handshake, Lightbulb, Check, Circle } from '../components/icons'
@@ -21,7 +21,7 @@ function ScoreRing({ score }) {
   )
 }
 
-function IdeaCard({ idea, onInvest }) {
+function IdeaCard({ idea, onInvest, onCollab }) {
   const strengths = idea.strengths || []
   const weaknesses = idea.weaknesses || []
   const competitors = idea.competitors || []
@@ -74,7 +74,7 @@ function IdeaCard({ idea, onInvest }) {
         <button onClick={onInvest} className="btn-ghost ml-auto !py-1.5 !px-3 text-xs">
           <Coins size={14} /> Invest 50
         </button>
-        <button className="btn-primary !py-1.5 !px-3 text-xs"><Handshake size={14} /> Collab</button>
+        <button onClick={onCollab} className="btn-primary !py-1.5 !px-3 text-xs"><Handshake size={14} /> Collab</button>
       </div>
     </motion.div>
   )
@@ -82,6 +82,7 @@ function IdeaCard({ idea, onInvest }) {
 
 export default function Ideas() {
   const toast = useToast()
+  const navigate = useNavigate()
   const { user, spendCredits } = useStore()
   const [ideas, setIdeas] = useState([])
   const [sort, setSort] = useState('AI Score')
@@ -89,6 +90,17 @@ export default function Ideas() {
   const [analyzing, setAnalyzing] = useState(false)
 
   useEffect(() => subscribeIdeas(setIdeas), [])
+
+  const collab = async (idea) => {
+    if (!idea.author?.uid || idea.author.uid === user?.uid) return
+    try {
+      await requestCollab(user, idea.author, idea.title)
+      toast(`Collab request sent for "${idea.title}"`, { tone: 'success', icon: Handshake })
+      navigate(`/messages/${idea.author.uid}`)
+    } catch {
+      toast('Could not send collab request', { tone: 'warning' })
+    }
+  }
 
   const sorted = [...ideas].sort((a, b) => {
     if (sort === 'AI Score') return (b.aiScore || 0) - (a.aiScore || 0)
@@ -171,7 +183,7 @@ export default function Ideas() {
       <div className="space-y-4">
         <AnimatePresence>
           {sorted.map((idea) => (
-            <IdeaCard key={idea.ideaId} idea={idea} onInvest={() => invest(idea)} />
+            <IdeaCard key={idea.ideaId} idea={idea} onInvest={() => invest(idea)} onCollab={() => collab(idea)} />
           ))}
         </AnimatePresence>
         {sorted.length === 0 && (

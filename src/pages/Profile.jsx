@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
 import { Avatar, LevelBadge, StackPill, EmptyState } from '../components/ui'
-import { fetchProfileByUsername } from '../lib/db'
+import { fetchProfileByUsername, requestCollab } from '../lib/db'
 import {
   Handshake, Rocket, Coins, Bookmark, PenSquare,
   GithubMark, Link2, Settings, MessageCircle,
@@ -15,7 +15,18 @@ const TABS = ['Posts', 'Projects', 'Ideas', 'Saved']
 export default function Profile() {
   const { username } = useParams()
   const toast = useToast()
+  const navigate = useNavigate()
   const { user: me, posts, users, following, toggleFollow, saved } = useStore()
+
+  const sendCollab = async (p) => {
+    try {
+      await requestCollab(me, p)
+      toast(`Collab request sent to ${p.displayName}`, { tone: 'success', icon: Handshake })
+      navigate(`/messages/${p.uid}`)
+    } catch {
+      toast('Could not send collab request', { tone: 'warning' })
+    }
+  }
 
   // Resolve from: my own profile → loaded directory → one-shot Firestore fetch.
   const [fetched, setFetched] = useState(null)
@@ -65,6 +76,7 @@ export default function Profile() {
             ) : (
               <>
                 <Link to={`/messages/${profile.uid}`} className="btn-ghost"><MessageCircle size={15} /> Message</Link>
+                <button onClick={() => sendCollab(profile)} className="btn-ghost"><Handshake size={15} /> Collab</button>
                 <button
                   onClick={() => {
                     toggleFollow(profile.uid)

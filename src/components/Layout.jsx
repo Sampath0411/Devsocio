@@ -3,11 +3,33 @@ import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { logout as fbLogout, isAdmin } from '../lib/auth'
+import { subscribeUnreadCount } from '../lib/db'
 import { Avatar } from './ui'
 import {
   Home, Compass, Lightbulb, Mail, Bell, Search, Plus,
   User, Coins, Settings, LogOut, ShieldAlert, Code2, UserPlus,
 } from './icons'
+
+// Live unread-notifications count for the signed-in user.
+function useUnreadCount() {
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (!firebaseUser) return undefined
+    return subscribeUnreadCount(firebaseUser.uid, setN)
+  }, [firebaseUser])
+  return n
+}
+
+// Small red count bubble used on the Notifications nav icon.
+function Badge({ n }) {
+  if (!n) return null
+  return (
+    <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+      {n > 9 ? '9+' : n}
+    </span>
+  )
+}
 
 // Primary nav — Credits intentionally lives in the profile menu, not here.
 const NAV = [
@@ -101,6 +123,7 @@ function ProfileMenu() {
 
 function TopNav() {
   const navigate = useNavigate()
+  const unread = useUnreadCount()
   const [search, setSearch] = useState('')
   const runSearch = (e) => {
     e.preventDefault()
@@ -140,7 +163,10 @@ function TopNav() {
               >
                 {({ isActive }) => (
                   <>
-                    <n.Icon size={20} />
+                    <span className="relative">
+                      <n.Icon size={20} />
+                      {n.to === '/notifications' && <Badge n={unread} />}
+                    </span>
                     {isActive && <span className="absolute -bottom-[9px] h-0.5 w-6 rounded-full bg-primary" />}
                   </>
                 )}
@@ -245,6 +271,7 @@ function RightPanel() {
 // Bottom tab bar — mobile only (PRD §6.4 single-column mobile layout).
 function BottomNav() {
   const navigate = useNavigate()
+  const unread = useUnreadCount()
   return (
     <>
       {/* Create — floating action button above the tab bar */}
@@ -271,7 +298,10 @@ function BottomNav() {
             >
               {({ isActive }) => (
                 <>
-                  <n.Icon size={22} />
+                  <span className="relative">
+                    <n.Icon size={22} />
+                    {n.to === '/notifications' && <Badge n={unread} />}
+                  </span>
                   {isActive && <span className="h-1 w-1 rounded-full bg-primary" />}
                 </>
               )}

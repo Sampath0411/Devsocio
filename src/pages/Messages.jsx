@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
+import { useToast } from '../components/Toast'
 import { Avatar, EmptyState } from '../components/ui'
-import { subscribeConversations, subscribeThread, sendMessage, convoId } from '../lib/db'
+import { subscribeConversations, subscribeThread, sendMessage, convoId, acceptCollab } from '../lib/db'
 import { timeAgo } from '../lib/time'
 import { Handshake, Send, Code2, Circle, Mail, ChevronLeft } from '../components/icons'
 
 export default function Messages() {
   const { id: routeParam } = useParams() // either a conversation id or a target uid
   const navigate = useNavigate()
+  const toast = useToast()
   const { firebaseUser, users } = useStore()
   const [convos, setConvos] = useState([])
   const [activeId, setActiveId] = useState(null)
@@ -67,6 +69,15 @@ export default function Messages() {
 
   const openConvo = (c) => { setActiveId(c.id); setDraftTarget(null) }
   const backToList = () => { setActiveId(null); setDraftTarget(null); navigate('/messages') }
+
+  const accept = async (cid) => {
+    try {
+      await acceptCollab(cid)
+      toast('Collab accepted 🎉', { tone: 'success' })
+    } catch {
+      toast('Could not accept', { tone: 'warning' })
+    }
+  }
 
   const send = async () => {
     const text = draft.trim()
@@ -146,10 +157,15 @@ export default function Messages() {
                   <div className="card mx-auto max-w-sm border-primary/40 bg-primary/[0.06] text-center">
                     <p className="pill mx-auto border border-primary/40 text-primary"><Handshake size={12} /> Collab Request</p>
                     <p className="mt-2 text-sm">{p.displayName} wants to collab</p>
-                    <div className="mt-3 flex justify-center gap-2">
-                      <button className="btn-primary !py-1.5 text-xs">Accept (+40 credits)</button>
-                      <button className="btn-ghost !py-1.5 text-xs">Decline</button>
-                    </div>
+                    {active.collabAccepted ? (
+                      <p className="mt-2 flex items-center justify-center gap-1 text-sm font-semibold text-success">
+                        <Circle size={7} fill="currentColor" strokeWidth={0} /> Collab accepted
+                      </p>
+                    ) : (
+                      <div className="mt-3 flex justify-center gap-2">
+                        <button onClick={() => accept(active.id)} className="btn-primary !py-1.5 text-xs">Accept collab</button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {thread.length === 0 && (

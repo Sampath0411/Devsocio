@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Avatar, EmptyState } from '../components/ui'
-import { subscribeNotifications } from '../lib/db'
+import { subscribeNotifications, markAllNotificationsRead } from '../lib/db'
 import { timeAgo } from '../lib/time'
 import { Heart, UserPlus, Handshake, MessageCircle, Coins, Bell } from '../components/icons'
 
@@ -22,6 +22,13 @@ export default function Notifications() {
     if (!firebaseUser) return
     return subscribeNotifications(firebaseUser.uid, setItems)
   }, [firebaseUser])
+
+  // Clear the unread badge once the user is looking at the list.
+  useEffect(() => {
+    if (firebaseUser && items.some((n) => !n.read)) {
+      markAllNotificationsRead(firebaseUser.uid, items)
+    }
+  }, [firebaseUser, items])
 
   return (
     <div className="mx-auto w-full max-w-2xl">
