@@ -13,3 +13,6 @@ dist
 *service-account*.json
 *.pem
 *.key
+
+# Firebase deploy cache
+.firebase/
