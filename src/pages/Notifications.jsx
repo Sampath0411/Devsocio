@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Avatar, EmptyState } from '../components/ui'
 import { subscribeNotifications } from '../lib/db'
+import { timeAgo } from '../lib/time'
 import { Heart, UserPlus, Handshake, MessageCircle, Coins, Bell } from '../components/icons'
 
 const ICON = {
@@ -45,7 +46,9 @@ export default function Notifications() {
                   )}
                   <span className={n.actor ? 'text-text-muted' : ''}>{n.text}</span>
                 </p>
-                {n.time && <span className="shrink-0 text-xs text-text-muted">{n.time}</span>}
+                {(n.time || n.createdAt) && (
+                  <span className="shrink-0 text-xs text-text-muted">{n.time || timeAgo(n.createdAt)}</span>
+                )}
                 {!n.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
               </div>
             )

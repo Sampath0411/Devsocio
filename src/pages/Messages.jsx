@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { Avatar, EmptyState } from '../components/ui'
 import { subscribeConversations, subscribeThread, sendMessage } from '../lib/db'
+import { timeAgo } from '../lib/time'
 import { Handshake, Send, Code2, Circle, Mail } from '../components/icons'
 
 export default function Messages() {
@@ -83,7 +84,9 @@ export default function Messages() {
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1">
-                {c.time && <span className="text-[10px] text-text-muted">{c.time}</span>}
+                {(c.time || c.updatedAt) && (
+                  <span className="text-[10px] text-text-muted">{c.time || timeAgo(c.updatedAt)}</span>
+                )}
                 {c.unread > 0 && (
                   <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-white">{c.unread}</span>
                 )}

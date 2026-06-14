@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock } from './ui'
+import { timeAgo } from '../lib/time'
 import { TYPE_META } from './postTypes'
 import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal } from './icons'
 
@@ -39,7 +40,7 @@ export default function PostCard({ post }) {
             </Link>
             <span className="truncate text-sm text-text-muted">@{post.author.username}</span>
             <span className="text-text-muted">·</span>
-            <span className="shrink-0 text-xs text-text-muted">{post.createdAt}</span>
+            <span className="shrink-0 text-xs text-text-muted">{timeAgo(post.createdAt)}</span>
           </div>
         </div>
         <span

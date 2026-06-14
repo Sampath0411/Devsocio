@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast'
 import { Avatar, StackPill, AIBadge, AILoader, EmptyState } from '../components/ui'
 import { subscribeIdeas, createIdea, investInIdea } from '../lib/db'
 import { scoreIdea } from '../lib/ai'
+import { timeAgo } from '../lib/time'
 import { Coins, MessageCircle, Handshake, Lightbulb, Check, Circle } from '../components/icons'
 
 const SORTS = ['Newest', 'Most Invested', 'AI Score', 'Most Discussed']
@@ -32,7 +33,7 @@ function IdeaCard({ idea, onInvest }) {
         </Link>
         <div className="flex-1">
           <h3 className="font-display text-lg font-bold leading-tight">{idea.title}</h3>
-          <p className="text-xs text-text-muted">by @{idea.author?.username} · {idea.createdAt || 'now'}</p>
+          <p className="text-xs text-text-muted">by @{idea.author?.username} · {timeAgo(idea.createdAt) || 'now'}</p>
         </div>
         <ScoreRing score={idea.aiScore} />
       </div>
