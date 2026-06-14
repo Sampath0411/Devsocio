@@ -17,10 +17,12 @@ service cloud.firestore {
     // ---- Users & their private subcollections ----
     match /users/{uid} {
       allow read: if signedIn();
-      // Static hosting (no server functions): credit earning runs client-side,
-      // so owners may update their own profile incl. credits. Admin may too.
       allow create: if isUser(uid);
-      allow update: if isUser(uid) || isAdmin();
+      // Owners may edit their profile and SPEND credits (decrease), but may NOT
+      // increase their own credits — earning is handled by Cloud Functions
+      // (Admin SDK bypasses these rules). Admin may change anything.
+      allow update: if isAdmin() ||
+        (isUser(uid) && request.resource.data.credits <= resource.data.credits);
       allow delete: if false;
 
       // Bookmarks and follow edges belong to the user. Follower/following
