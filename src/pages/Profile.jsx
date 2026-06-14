@@ -47,7 +47,12 @@ export default function Profile() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <div className="h-36 w-full rounded-card" style={{ background: 'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)' }} />
+      <div
+        className="h-36 w-full rounded-card bg-cover bg-center"
+        style={profile.coverUrl
+          ? { backgroundImage: `url(${profile.coverUrl})` }
+          : { background: 'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)' }}
+      />
 
       <div className="-mt-10 px-2">
         <div className="flex items-end justify-between">

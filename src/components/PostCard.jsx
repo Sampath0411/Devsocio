@@ -108,7 +108,11 @@ export default function PostCard({ post }) {
         </pre>
       )}
 
-      {post.image && <GradientBlock variant={post.image} label={post.type} />}
+      {post.imageUrl ? (
+        <img src={post.imageUrl} alt="" className="max-h-[480px] w-full rounded-card border border-border object-cover" />
+      ) : post.image ? (
+        <GradientBlock variant={post.image} label={post.type} />
+      ) : null}
 
       {/* AI analysis (PRD §4) */}
       {post.aiAnalysis && (

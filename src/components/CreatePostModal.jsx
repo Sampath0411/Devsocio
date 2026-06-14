@@ -5,10 +5,11 @@ import { useToast } from './Toast'
 import { createPost } from '../lib/db'
 import { analyzePost } from '../lib/ai'
 import { earnCredits } from '../lib/credits'
+import { uploadImage, cloudinaryConfigured } from '../lib/upload'
 import { AILoader, StackPill } from './ui'
 import { POST_TYPES } from '../data/mock'
 import { TYPE_META } from './postTypes'
-import { X, Sparkles, Coins } from './icons'
+import { X, Sparkles, Coins, ImageIcon } from './icons'
 
 // Local fallback line per post type, used only if the AI call fails (PRD §4.1).
 const FALLBACK_AI = {
@@ -25,8 +26,23 @@ export default function CreatePostModal({ open, onClose }) {
   const toast = useToast()
   const [type, setType] = useState('Code Snippet')
   const [content, setContent] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [aiState, setAiState] = useState('idle')
   const [aiResult, setAiResult] = useState('')
+
+  const onPickImage = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      setImageUrl(await uploadImage(file))
+    } catch {
+      toast('Upload failed — paste an image URL instead', { tone: 'warning' })
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // Real AI analysis via OpenRouter, with a graceful local fallback.
   const runAI = async () => {
@@ -53,6 +69,7 @@ export default function CreatePostModal({ open, onClose }) {
       type,
       createdAt: 'now',
       content,
+      imageUrl: imageUrl.trim() || null,
       tags: user?.techStack?.slice(0, 2) || [],
       hashtags: [],
       likes: 0,
@@ -76,7 +93,7 @@ export default function CreatePostModal({ open, onClose }) {
     onClose()
   }
 
-  const reset = () => { setContent(''); setAiState('idle'); setAiResult(''); setType('Code Snippet') }
+  const reset = () => { setContent(''); setImageUrl(''); setAiState('idle'); setAiResult(''); setType('Code Snippet') }
 
   return (
     <AnimatePresence>
@@ -110,6 +127,29 @@ export default function CreatePostModal({ open, onClose }) {
             <textarea className="input min-h-[120px] resize-none"
               placeholder={`Share a ${type.toLowerCase()}…`}
               value={content} onChange={(e) => setContent(e.target.value)} />
+
+            {/* image: upload (if Cloudinary configured) or paste a URL */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {cloudinaryConfigured() && (
+                  <label className="btn-ghost cursor-pointer !py-1.5 text-xs">
+                    <ImageIcon size={13} /> {uploading ? 'Uploading…' : 'Upload image'}
+                    <input type="file" accept="image/*" className="hidden" onChange={onPickImage} disabled={uploading} />
+                  </label>
+                )}
+                <input className="input text-xs" placeholder="…or paste an image URL"
+                  value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+              </div>
+              {imageUrl && (
+                <div className="relative">
+                  <img src={imageUrl} alt="preview" className="max-h-48 w-full rounded-card object-cover" />
+                  <button onClick={() => setImageUrl('')}
+                    className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="rounded-card border border-primary/25 bg-primary/[0.06] p-3">
               <div className="flex items-center justify-between">

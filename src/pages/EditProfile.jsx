@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar, StackPill, AILoader } from '../components/ui'
 import { generateBio } from '../lib/ai'
+import { uploadImage, cloudinaryConfigured } from '../lib/upload'
 import { STACK_COLORS } from '../data/mock'
 import { Sparkles, Camera, Handshake, Rocket } from '../components/icons'
 
@@ -18,10 +19,28 @@ export default function EditProfile() {
     displayName: user?.displayName || '',
     bio: user?.bio || '',
     techStack: user?.techStack || [],
+    avatar: user?.avatar || '',
+    coverUrl: user?.coverUrl || '',
     openToCollab: user?.openToCollab ?? false,
     lookingForCofounder: user?.lookingForCofounder ?? false,
   })
   const [genning, setGenning] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+
+  const onPickPhoto = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPhoto(true)
+    try {
+      const url = await uploadImage(file)
+      setForm((f) => ({ ...f, avatar: url }))
+      toast('Photo uploaded', { tone: 'success' })
+    } catch {
+      toast('Upload failed — paste an image URL instead', { tone: 'warning' })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   const toggleStack = (s) =>
     setForm((f) => ({
@@ -63,8 +82,23 @@ export default function EditProfile() {
 
       <div className="card space-y-4">
         <div className="flex items-center gap-4">
-          <Avatar src={user?.avatar} alt="you" size={72} />
-          <button className="btn-ghost text-xs"><Camera size={14} /> Change photo</button>
+          <Avatar src={form.avatar || user?.avatar} alt="you" size={72} />
+          <div className="flex-1 space-y-2">
+            {cloudinaryConfigured() && (
+              <label className="btn-ghost cursor-pointer text-xs">
+                <Camera size={14} /> {uploadingPhoto ? 'Uploading…' : 'Change photo'}
+                <input type="file" accept="image/*" className="hidden" onChange={onPickPhoto} disabled={uploadingPhoto} />
+              </label>
+            )}
+            <input className="input text-xs" placeholder="Avatar image URL"
+              value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-text-muted">Cover image URL</label>
+          <input className="input text-xs" placeholder="https://… (optional)"
+            value={form.coverUrl} onChange={(e) => setForm({ ...form, coverUrl: e.target.value })} />
         </div>
 
         <div>
