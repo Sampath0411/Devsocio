@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Avatar, EmptyState } from '../components/ui'
-import { subscribeConversations, subscribeThread, sendMessage } from '../lib/db'
+import { subscribeConversations, subscribeThread, sendMessage, convoId } from '../lib/db'
 import { timeAgo } from '../lib/time'
-import { Handshake, Send, Code2, Circle, Mail } from '../components/icons'
+import { Handshake, Send, Code2, Circle, Mail, ChevronLeft } from '../components/icons'
 
 export default function Messages() {
-  const { firebaseUser, user: me, users } = useStore()
+  const { id: routeParam } = useParams() // either a conversation id or a target uid
+  const navigate = useNavigate()
+  const { firebaseUser, users } = useStore()
   const [convos, setConvos] = useState([])
   const [activeId, setActiveId] = useState(null)
+  const [draftTarget, setDraftTarget] = useState(null) // uid we're starting a chat with
   const [thread, setThread] = useState([])
   const [draft, setDraft] = useState('')
 
@@ -16,7 +20,8 @@ export default function Messages() {
   const party = useMemo(() => {
     const byUid = Object.fromEntries((users || []).map((u) => [u.uid, u]))
     return (c) => {
-      if (c.user) return c.user // mock-shaped fallback
+      if (!c) return null
+      if (c.user) return c.user
       const otherUid = (c.members || []).find((m) => m !== firebaseUser?.uid)
       return byUid[otherUid] || { uid: otherUid, displayName: 'Developer', username: otherUid, avatar: undefined }
     }
@@ -28,12 +33,31 @@ export default function Messages() {
     return subscribeConversations(firebaseUser.uid, setConvos)
   }, [firebaseUser])
 
-  // Default-select the first conversation once they load.
+  // Deep link: /messages/<uid> (from a profile) or /messages/<conversationId>.
   useEffect(() => {
-    if (!activeId && convos.length) setActiveId(convos[0].id)
-  }, [convos, activeId])
+    if (!firebaseUser) return
+    if (!routeParam) return
+    const otherUid = routeParam.includes('__')
+      ? routeParam.split('__').find((x) => x !== firebaseUser.uid)
+      : routeParam
+    if (otherUid && otherUid !== firebaseUser.uid) {
+      setActiveId(convoId(firebaseUser.uid, otherUid))
+      setDraftTarget(otherUid)
+    }
+  }, [routeParam, firebaseUser])
 
-  const active = convos.find((c) => c.id === activeId) || null
+  // Otherwise default to the first existing conversation (desktop convenience).
+  useEffect(() => {
+    if (!activeId && !routeParam && convos.length) setActiveId(convos[0].id)
+  }, [convos, activeId, routeParam])
+
+  // The active conversation: a real one if it exists, else a draft stub so we
+  // can show the thread before the first message creates the doc.
+  const active =
+    convos.find((c) => c.id === activeId) ||
+    (activeId && draftTarget
+      ? { id: activeId, members: [firebaseUser.uid, draftTarget] }
+      : null)
 
   // Live thread for the active conversation.
   useEffect(() => {
@@ -41,36 +65,38 @@ export default function Messages() {
     return subscribeThread(activeId, setThread)
   }, [activeId])
 
+  const openConvo = (c) => { setActiveId(c.id); setDraftTarget(null) }
+  const backToList = () => { setActiveId(null); setDraftTarget(null); navigate('/messages') }
+
   const send = async () => {
     const text = draft.trim()
     if (!text || !active) return
-    setDraft('')
     const other = party(active)
+    if (!other?.uid) return
+    setDraft('')
     try {
       await sendMessage(firebaseUser.uid, other.uid, text)
     } catch {
-      // Optimistic echo if the write fails (rules/offline).
       setThread((t) => [...t, { id: 'local_' + t.length, from: firebaseUser.uid, text }])
     }
   }
 
-  if (convos.length === 0) {
-    return (
-      <div className="mx-auto max-w-xl">
-        <EmptyState icon={Mail} title="No conversations yet — start one from a developer's profile." />
-      </div>
-    )
-  }
+  const noConvos = convos.length === 0 && !active
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] overflow-hidden rounded-card border border-border bg-surface">
-      {/* conversation list */}
-      <div className="w-full max-w-xs shrink-0 overflow-y-auto border-r border-border md:w-72">
+    <div className="flex h-[calc(100vh-9rem)] overflow-hidden rounded-card border border-border bg-surface md:h-[calc(100vh-7rem)]">
+      {/* conversation list — hidden on mobile while a chat is open */}
+      <div className={`w-full shrink-0 overflow-y-auto border-r border-border md:w-72 md:max-w-xs ${active ? 'hidden md:block' : 'block'}`}>
         <h1 className="border-b border-border px-4 py-4 font-display text-lg font-bold">Messages</h1>
+        {noConvos && (
+          <p className="px-4 py-6 text-sm text-text-muted">
+            No conversations yet — open a developer&apos;s profile and tap <b>Message</b> to start one.
+          </p>
+        )}
         {convos.map((c) => {
           const p = party(c)
           return (
-            <button key={c.id} onClick={() => setActiveId(c.id)}
+            <button key={c.id} onClick={() => openConvo(c)}
               className={`flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-bg ${
                 activeId === c.id ? 'bg-bg' : ''}`}>
               <span className="relative">
@@ -80,35 +106,37 @@ export default function Messages() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{p.displayName}</p>
                 <p className={`flex items-center gap-1 truncate text-xs ${c.isCollab ? 'text-primary' : 'text-text-muted'}`}>
-                  {c.isCollab && <Handshake size={12} className="shrink-0" />}{c.last}
+                  {c.isCollab && <Handshake size={12} className="shrink-0" />}{c.last || 'New conversation'}
                 </p>
               </div>
-              <div className="flex flex-col items-end gap-1">
-                {(c.time || c.updatedAt) && (
-                  <span className="text-[10px] text-text-muted">{c.time || timeAgo(c.updatedAt)}</span>
-                )}
-                {c.unread > 0 && (
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-white">{c.unread}</span>
-                )}
-              </div>
+              {(c.time || c.updatedAt) && (
+                <span className="text-[10px] text-text-muted">{c.time || timeAgo(c.updatedAt)}</span>
+              )}
             </button>
           )
         })}
       </div>
 
       {/* thread */}
-      <div className="hidden flex-1 flex-col md:flex">
-        {active && (() => {
+      <div className={`flex-1 flex-col ${active ? 'flex' : 'hidden md:flex'}`}>
+        {!active ? (
+          <div className="hidden flex-1 items-center justify-center md:flex">
+            <EmptyState icon={Mail} title="Select a conversation, or message a dev from their profile." />
+          </div>
+        ) : (() => {
           const p = party(active)
           return (
             <>
               <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+                <button onClick={backToList} className="text-text-muted hover:text-text-primary md:hidden" aria-label="Back">
+                  <ChevronLeft size={20} />
+                </button>
                 <Avatar src={p.avatar} alt={p.displayName} size={36} />
                 <div>
                   <p className="text-sm font-semibold">{p.displayName}</p>
                   <p className="flex items-center gap-1 text-xs text-success">
                     {active.online && <Circle size={7} fill="currentColor" strokeWidth={0} />}
-                    {active.online ? 'online' : 'offline'}
+                    {active.online ? 'online' : `@${p.username}`}
                   </p>
                 </div>
               </div>
@@ -131,7 +159,7 @@ export default function Messages() {
                   const mine = m.from === firebaseUser?.uid || m.from === 'me'
                   return (
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] rounded-card px-3.5 py-2 text-sm ${
+                      <div className={`max-w-[75%] rounded-card px-3.5 py-2 text-sm ${
                         mine ? 'bg-primary text-white' : 'border border-border bg-bg'}`}>
                         {m.text}
                       </div>
@@ -141,10 +169,10 @@ export default function Messages() {
               </div>
 
               <div className="flex items-center gap-2 border-t border-border p-3">
-                <button className="text-text-muted hover:text-text-primary" title="Send code block"><Code2 size={20} /></button>
+                <button className="hidden text-text-muted hover:text-text-primary sm:block" title="Send code block"><Code2 size={20} /></button>
                 <input className="input" placeholder="Message…" value={draft}
                   onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
-                <button onClick={send} className="btn-primary shrink-0"><Send size={15} /> Send</button>
+                <button onClick={send} disabled={!draft.trim()} className="btn-primary shrink-0"><Send size={15} /> Send</button>
               </div>
             </>
           )

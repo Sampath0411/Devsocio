@@ -59,7 +59,7 @@ export default function Profile() {
               <Link to="/profile/edit" className="btn-ghost"><Settings size={15} /> Edit Profile</Link>
             ) : (
               <>
-                <Link to="/messages" className="btn-ghost"><MessageCircle size={15} /> Message</Link>
+                <Link to={`/messages/${profile.uid}`} className="btn-ghost"><MessageCircle size={15} /> Message</Link>
                 <button
                   onClick={() => {
                     toggleFollow(profile.uid)
