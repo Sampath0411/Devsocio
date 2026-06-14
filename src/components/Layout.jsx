@@ -118,34 +118,42 @@ function TopNav() {
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </form>
 
-        {/* nav links */}
-        <nav className="ml-auto flex items-center gap-0.5">
-          {NAV.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              title={n.label}
-              className={({ isActive }) =>
-                `relative flex flex-col items-center rounded-input px-3 py-1.5 transition-colors ${
-                  isActive ? 'text-primary' : 'text-text-muted hover:text-text-primary'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <n.Icon size={20} />
-                  {isActive && <span className="absolute -bottom-[9px] h-0.5 w-6 rounded-full bg-primary" />}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="ml-auto flex items-center gap-1">
+          {/* search (mobile) → Explore */}
+          <Link to="/explore" aria-label="Search"
+            className="grid h-9 w-9 place-items-center rounded-input text-text-muted hover:text-text-primary md:hidden">
+            <Search size={20} />
+          </Link>
 
-        <button onClick={() => navigate('/feed?create=1')} className="btn-primary ml-1 !px-3 md:!px-4">
-          <Plus size={16} /> <span className="hidden md:inline">Create</span>
-        </button>
+          {/* primary nav (desktop only — mobile uses the bottom bar) */}
+          <nav className="hidden items-center gap-0.5 md:flex">
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                title={n.label}
+                className={({ isActive }) =>
+                  `relative flex flex-col items-center rounded-input px-3 py-1.5 transition-colors ${
+                    isActive ? 'text-primary' : 'text-text-muted hover:text-text-primary'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <n.Icon size={20} />
+                    {isActive && <span className="absolute -bottom-[9px] h-0.5 w-6 rounded-full bg-primary" />}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </nav>
 
-        <ProfileMenu />
+          <button onClick={() => navigate('/feed?create=1')} className="btn-primary hidden !px-4 md:inline-flex">
+            <Plus size={16} /> <span>Create</span>
+          </button>
+
+          <ProfileMenu />
+        </div>
       </div>
     </header>
   )
@@ -234,14 +242,56 @@ function RightPanel() {
   )
 }
 
+// Bottom tab bar — mobile only (PRD §6.4 single-column mobile layout).
+function BottomNav() {
+  const navigate = useNavigate()
+  return (
+    <>
+      {/* Create — floating action button above the tab bar */}
+      <button
+        onClick={() => navigate('/feed?create=1')}
+        aria-label="Create post"
+        className="fixed bottom-20 right-4 z-50 grid h-14 w-14 place-items-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 active:scale-95 md:hidden"
+      >
+        <Plus size={24} />
+      </button>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-md items-stretch justify-around">
+          {NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              aria-label={n.label}
+              className={({ isActive }) =>
+                `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
+                  isActive ? 'text-primary' : 'text-text-muted'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <n.Icon size={22} />
+                  {isActive && <span className="h-1 w-1 rounded-full bg-primary" />}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+    </>
+  )
+}
+
 export default function Layout({ children, wide }) {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
+      <div className="mx-auto flex max-w-6xl gap-6 px-4 pb-24 pt-6 md:pb-6">
         <main className="min-w-0 flex-1">{children}</main>
         {!wide && <RightPanel />}
       </div>
+      <BottomNav />
     </div>
   )
 }

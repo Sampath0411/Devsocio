@@ -81,10 +81,20 @@ async function chatDirect(messages, { temperature, maxTokens }) {
   throw lastErr || new Error('All OpenRouter models failed')
 }
 
-// Low-level chat call. Returns the assistant message text, or throws.
+// Low-level chat call. In production, prefer the secure serverless proxy
+// (/api/ai). If that isn't configured (no server key) or fails, fall back to a
+// direct OpenRouter call using the VITE_ key so the AI features keep working.
 async function chat(messages, { temperature = 0.7, maxTokens = 500 } = {}) {
   if (import.meta.env.DEV) return chatDirect(messages, { temperature, maxTokens })
-  return chatViaProxy(messages, { temperature, maxTokens })
+  try {
+    return await chatViaProxy(messages, { temperature, maxTokens })
+  } catch (err) {
+    // Proxy unavailable (server key not set yet) — fall back to direct call.
+    if (import.meta.env.VITE_OPENROUTER_API_KEY) {
+      return chatDirect(messages, { temperature, maxTokens })
+    }
+    throw err
+  }
 }
 
 // Pull the first JSON object/array out of a model response (handles ```json fences).
