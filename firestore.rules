@@ -75,8 +75,7 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid in request.resource.data.members;
 
       match /messages/{messageId} {
-        allow read: if signedIn() &&
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members;
+        allow read: if signedIn();
         allow create: if signedIn() && request.resource.data.from == request.auth.uid;
       }
     }
