@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar } from '../components/ui'
-import { changeCredits } from '../lib/db'
+import { changeCredits, subscribeReports, resolveReport, deletePost } from '../lib/db'
+import { timeAgo } from '../lib/time'
 import {
-  ShieldAlert, Users, FileText, Mail, Coins, Plus,
+  ShieldAlert, Users, FileText, Mail, Coins, Plus, Flag, Trash2, Check,
   GithubMark, GoogleMark,
 } from '../components/icons'
 
@@ -86,6 +87,30 @@ function MemberRow({ u }) {
 
 export default function Admin() {
   const { users, posts } = useStore()
+  const toast = useToast()
+  const [reports, setReports] = useState([])
+
+  useEffect(() => subscribeReports(setReports), [])
+
+  const openReports = reports.filter((r) => r.status === 'pending')
+
+  const removePost = async (r) => {
+    try {
+      if (r.targetType === 'post' && r.targetId) await deletePost(r.targetId)
+      await resolveReport(r.id, 'removed')
+      toast('Post removed', { tone: 'success' })
+    } catch {
+      toast('Could not remove (check admin rules)', { tone: 'warning' })
+    }
+  }
+  const dismissReport = async (r) => {
+    try {
+      await resolveReport(r.id, 'reviewed')
+      toast('Marked reviewed', { tone: 'success' })
+    } catch {
+      toast('Could not update report', { tone: 'warning' })
+    }
+  }
 
   // Real login analytics: how many accounts signed in with each method.
   const counts = users.reduce(
@@ -97,7 +122,7 @@ export default function Admin() {
   const stats = [
     { label: 'Total Users', value: users.length, Icon: Users },
     { label: 'Total Posts', value: posts.length, Icon: FileText },
-    { label: 'Total Credits', value: users.reduce((s, u) => s + (u.credits || 0), 0), Icon: Coins },
+    { label: 'Open Reports', value: openReports.length, Icon: Flag },
   ]
 
   // All members, most recent first.
@@ -149,6 +174,45 @@ export default function Admin() {
         <p className="text-xs text-text-muted">
           Based on {users.length} loaded {users.length === 1 ? 'account' : 'accounts'}.
         </p>
+      </div>
+
+      {/* Reported content (PRD §7.4) */}
+      <h2 className="mb-3 font-display text-sm font-bold">Reported content</h2>
+      <div className="card mb-5 divide-y divide-border p-0">
+        {reports.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-text-muted">No reports — all clear.</p>
+        )}
+        {reports.map((r) => (
+          <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-danger/10 text-danger">
+              <Flag size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">
+                <span className="font-semibold capitalize">{r.targetType}</span> reported for{' '}
+                <span className="text-danger">{r.reason}</span>
+                {r.createdAt && <span className="text-xs text-text-muted"> · {timeAgo(r.createdAt)}</span>}
+              </p>
+              {r.excerpt && <p className="truncate text-xs text-text-muted">“{r.excerpt}”</p>}
+            </div>
+            <span className={`pill border ${
+              r.status === 'pending' ? 'border-warning/40 text-warning'
+                : r.status === 'removed' ? 'border-danger/40 text-danger'
+                : 'border-success/40 text-success'}`}>
+              {r.status}
+            </span>
+            {r.status === 'pending' && (
+              <div className="flex gap-1">
+                <button onClick={() => dismissReport(r)} className="btn-ghost !py-1.5 text-xs">
+                  <Check size={13} /> Reviewed
+                </button>
+                <button onClick={() => removePost(r)} className="btn-ghost !py-1.5 text-xs text-danger">
+                  <Trash2 size={13} /> Remove
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Manage members — grant credits */}

@@ -48,9 +48,10 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
       // Author can edit/delete; any signed-in user may bump counters
-      // (likes / commentsCount) when interacting with the post.
+      // (likes / commentsCount) when interacting with the post. Admin may
+      // delete any post for moderation.
       allow update: if signedIn();
-      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+      allow delete: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
 
       match /likes/{uid} {
         allow read: if signedIn();
@@ -75,6 +76,21 @@ service cloud.firestore {
       // Author edits; any signed-in user may invest (increment) into an idea.
       allow update: if signedIn();
       allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // ---- Stories (24h) ----
+    match /stories/{storyId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
+      // Any signed-in user may react (update reactions map); author/admin delete.
+      allow update: if signedIn();
+      allow delete: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
+    }
+
+    // ---- Reports & moderation ----
+    match /reports/{reportId} {
+      allow create: if signedIn() && request.resource.data.reporterUid == request.auth.uid;
+      allow read, update, delete: if isAdmin();
     }
 
     // ---- Direct messages ----

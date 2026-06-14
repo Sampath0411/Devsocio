@@ -322,4 +322,78 @@ export async function sendMessage(meUid, otherUid, text, meta = {}) {
   return cid
 }
 
+// ----------------------------------------------------------------------------
+// Reports & moderation (PRD §7.4)
+// ----------------------------------------------------------------------------
+export async function reportContent(report) {
+  await addDoc(collection(db, 'reports'), {
+    status: 'pending',
+    ...report,
+    createdAt: serverTimestamp(),
+  })
+}
+
+export function subscribeReports(onData) {
+  try {
+    return onSnapshot(
+      query(collection(db, 'reports'), orderBy('createdAt', 'desc'), limit(100)),
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => onData([]),
+    )
+  } catch {
+    onData([])
+    return () => {}
+  }
+}
+
+export async function resolveReport(reportId, status) {
+  await updateDoc(doc(db, 'reports', reportId), { status })
+}
+
+// Admin moderation: delete a post (allowed for the author or admin by rules).
+export async function deletePost(postId) {
+  await deleteDoc(doc(db, 'posts', postId))
+}
+
+// ----------------------------------------------------------------------------
+// Stories (PRD §3.4) — 24h disappearing posts.
+// ----------------------------------------------------------------------------
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export async function createStory(story) {
+  const ref = await addDoc(collection(db, 'stories'), {
+    ...story,
+    reactions: {},
+    createdAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+// Live stories from the last 24h (filtered client-side so no index needed).
+export function subscribeStories(onData) {
+  try {
+    return onSnapshot(
+      query(collection(db, 'stories'), orderBy('createdAt', 'desc'), limit(100)),
+      (snap) => {
+        const cutoff = Date.now() - DAY_MS
+        const live = snap.docs
+          .map((d) => ({ storyId: d.id, ...d.data() }))
+          .filter((s) => {
+            const ms = s.createdAt?.toMillis ? s.createdAt.toMillis() : Date.now()
+            return ms >= cutoff
+          })
+        onData(live)
+      },
+      () => onData([]),
+    )
+  } catch {
+    onData([])
+    return () => {}
+  }
+}
+
+export async function reactToStory(storyId, emoji, uid) {
+  await updateDoc(doc(db, 'stories', storyId), { [`reactions.${uid}`]: emoji })
+}
+
 export { getDoc, doc }

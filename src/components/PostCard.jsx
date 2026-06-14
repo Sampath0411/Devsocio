@@ -1,22 +1,47 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
+import { useToast } from './Toast'
+import { reportContent } from '../lib/db'
 import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock } from './ui'
 import { timeAgo } from '../lib/time'
 import { TYPE_META } from './postTypes'
-import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal } from './icons'
+import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag } from './icons'
+
+const REPORT_REASONS = ['Spam', 'Abuse', 'Misinformation', 'NSFW']
 
 export default function PostCard({ post }) {
   const toggleLike = useStore((s) => s.toggleLike)
   const likes = useStore((s) => s.likes)
   const saved = useStore((s) => s.saved)
   const toggleSave = useStore((s) => s.toggleSave)
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  const toast = useToast()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const meta = TYPE_META[post.type] || TYPE_META['Code Snippet']
   const TypeIcon = meta.Icon
   const liked = !!likes[post.postId]
   const isSaved = !!saved[post.postId]
   const likeCount = (post.likes || 0) + (liked ? 1 : 0)
+
+  const report = async (reason) => {
+    setMenuOpen(false)
+    try {
+      await reportContent({
+        targetType: 'post',
+        targetId: post.postId,
+        reason,
+        reporterUid: firebaseUser?.uid,
+        postAuthorUid: post.authorUid || post.author?.uid || null,
+        excerpt: (post.content || '').slice(0, 120),
+      })
+      toast('Reported — thanks, our team will review it', { tone: 'success' })
+    } catch {
+      toast('Could not submit report', { tone: 'warning' })
+    }
+  }
 
   return (
     <motion.article
@@ -50,9 +75,26 @@ export default function PostCard({ post }) {
           <TypeIcon size={12} />
           {post.type}
         </span>
-        <button className="text-text-muted hover:text-text-primary" aria-label="More">
-          <MoreHorizontal size={18} />
-        </button>
+        <div className="relative">
+          <button onClick={() => setMenuOpen((o) => !o)}
+            className="text-text-muted hover:text-text-primary" aria-label="More">
+            <MoreHorizontal size={18} />
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 z-20 mt-1 w-44 rounded-card border border-border bg-surface p-1.5 shadow-2xl">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase text-text-muted">Report post</p>
+                {REPORT_REASONS.map((r) => (
+                  <button key={r} onClick={() => report(r)}
+                    className="flex w-full items-center gap-2 rounded-input px-2.5 py-2 text-sm text-text-muted hover:bg-bg hover:text-danger">
+                    <Flag size={14} /> {r}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* body */}
