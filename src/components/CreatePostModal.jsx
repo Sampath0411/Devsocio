@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { createPost } from '../lib/db'
 import { analyzePost } from '../lib/ai'
+import { earnCredits } from '../lib/credits'
 import { AILoader, StackPill } from './ui'
 import { POST_TYPES } from '../data/mock'
 import { TYPE_META } from './postTypes'
@@ -64,7 +65,12 @@ export default function CreatePostModal({ open, onClose }) {
     } catch {
       addPostLocal({ ...post, postId: 'local_' + Date.now() })
     }
-    addCredits(30) // first/new post reward (PRD §5.1)
+    // Reward via the trusted server; fall back to client write if not set up yet.
+    try {
+      await earnCredits('post_reward')
+    } catch {
+      addCredits(30)
+    }
     toast('Post published! +30 credits', { icon: Coins })
     reset()
     onClose()

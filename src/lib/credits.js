@@ -1,0 +1,21 @@
+// Client helper for trusted credit EARNING via the serverless function.
+// The server defines the amount per action; we only send the action name and
+// the caller's Firebase ID token. Falls back to the caller's local handler if
+// the server isn't configured yet, so the app keeps working pre-lockdown.
+import { auth } from '../firebase'
+
+export async function earnCredits(action) {
+  const user = auth.currentUser
+  if (!user) throw new Error('Not signed in')
+  const token = await user.getIdToken()
+  const res = await fetch('/api/credits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Credit server error (${res.status})`)
+  }
+  return res.json() // { credits, awarded }
+}

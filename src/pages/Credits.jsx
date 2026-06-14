@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar } from '../components/ui'
+import { earnCredits } from '../lib/credits'
 import { REWARDS, EARN_RULES } from '../data/mock'
 import {
   Coins, Copy, Check, Gift, Trophy, Plus,
@@ -35,6 +36,20 @@ export default function Credits() {
     else toast('Not enough credits', { tone: 'warning' })
   }
 
+  // Daily login bonus via the trusted server (server enforces once-per-day);
+  // falls back to a client write if the server isn't configured yet.
+  const dailyLogin = async () => {
+    try {
+      const { awarded } = await earnCredits('daily_login')
+      toast(awarded ? '+5 daily login bonus!' : 'Daily bonus already claimed today', {
+        icon: Coins, tone: awarded ? undefined : 'warning',
+      })
+    } catch {
+      addCredits(5)
+      toast('+5 daily login bonus!', { icon: Coins })
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <h1 className="mb-4 font-display text-xl font-bold">Credits Dashboard</h1>
@@ -46,7 +61,7 @@ export default function Credits() {
             <Coins size={30} /> {user?.credits ?? 0}
           </p>
         </div>
-        <button onClick={() => addCredits(5)} className="btn-ghost text-xs"><Plus size={14} /> Daily login (+5)</button>
+        <button onClick={dailyLogin} className="btn-ghost text-xs"><Plus size={14} /> Daily login (+5)</button>
       </div>
 
       <div className="card mb-5">
