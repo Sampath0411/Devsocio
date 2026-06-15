@@ -5,10 +5,12 @@ import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
 import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge } from '../components/ui'
 import { fetchProfileByUsername, requestCollab, isOnline } from '../lib/db'
+import { fetchRepos } from '../lib/github'
+import { achievementsFor } from '../lib/achievements'
 import { formatNum } from '../lib/time'
 import {
   Handshake, Rocket, Coins, Bookmark, PenSquare,
-  Settings, MessageCircle, Circle,
+  Settings, MessageCircle, Circle, Star, GithubMark, Crown,
 } from '../components/icons'
 
 const TABS = ['Posts', 'Projects', 'Ideas', 'Saved']
@@ -46,6 +48,22 @@ export default function Profile() {
   }, [username, users, me])
 
   const [tab, setTab] = useState('Posts')
+  const [repos, setRepos] = useState([])
+  const [repoErr, setRepoErr] = useState(false)
+  const [reposLoading, setReposLoading] = useState(false)
+  const ghHandle = profile?.links?.github?.handle
+
+  // Pull the developer's real GitHub repos when the Projects tab opens.
+  useEffect(() => {
+    setRepos([]); setRepoErr(false)
+    if (tab === 'Projects' && ghHandle) {
+      setReposLoading(true)
+      fetchRepos(ghHandle)
+        .then(setRepos)
+        .catch(() => setRepoErr(true))
+        .finally(() => setReposLoading(false))
+    }
+  }, [tab, ghHandle])
 
   if (!profile) {
     return <div className="py-10 text-center text-text-muted">Profile not found.</div>
@@ -96,6 +114,7 @@ export default function Profile() {
             <h1 className="flex items-center gap-1.5 font-display text-2xl font-bold">
               {profile.displayName}
               {profile.verified && <VerifiedTick size={20} />}
+              {profile.topDev && <Crown size={18} className="text-warning" />}
             </h1>
             <LevelBadge level={profile.devLevel} />
             {profile.moderator && <ModBadge />}
@@ -120,6 +139,19 @@ export default function Profile() {
           </div>
 
           <SocialLinks links={links} />
+
+          {(() => {
+            const badges = achievementsFor(profile, userPosts.length)
+            return badges.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {badges.map((b) => (
+                  <span key={b.id} className="pill border border-border text-text-muted" title={b.label}>
+                    <span>{b.emoji}</span> {b.label}
+                  </span>
+                ))}
+              </div>
+            )
+          })()}
 
           <div className="mt-4 flex gap-6 text-sm">
             <Stat label="Posts" value={profile.postsCount ?? userPosts.length} />
@@ -151,8 +183,39 @@ export default function Profile() {
           {tab === 'Posts' && (userPosts.length ? userPosts.map((p) => <PostCard key={p.postId} post={p} />)
             : <EmptyState icon={PenSquare} title="No posts yet — share your first build!" />)}
 
-          {(tab === 'Projects' || tab === 'Ideas') && (
-            <EmptyState icon={PenSquare} title={`No ${tab.toLowerCase()} yet`} />
+          {tab === 'Projects' && (
+            !ghHandle ? (
+              <EmptyState icon={GithubMark} title={isMe
+                ? 'Link your GitHub in Edit Profile to import your repos here.'
+                : 'No GitHub linked yet.'} />
+            ) : repoErr ? (
+              <EmptyState icon={GithubMark} title="Couldn't load GitHub repos (rate limit or private account)." />
+            ) : reposLoading ? (
+              <p className="py-8 text-center text-sm text-text-muted">Loading repos from @{ghHandle}…</p>
+            ) : repos.length === 0 ? (
+              <EmptyState icon={GithubMark} title={`@${ghHandle} has no public repos yet.`} />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {repos.map((r) => (
+                  <a key={r.id} href={r.url} target="_blank" rel="noreferrer"
+                    className="card hover:border-primary/50">
+                    <div className="flex items-center gap-2">
+                      <GithubMark size={15} />
+                      <span className="truncate font-semibold text-accent">{r.name}</span>
+                    </div>
+                    {r.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{r.description}</p>}
+                    <div className="mt-2 flex items-center gap-3 text-xs text-text-muted">
+                      {r.language && <span className="flex items-center gap-1"><Circle size={8} fill="currentColor" strokeWidth={0} className="text-primary" /> {r.language}</span>}
+                      <span className="flex items-center gap-1"><Star size={12} /> {formatNum(r.stars)}</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )
+          )}
+
+          {tab === 'Ideas' && (
+            <EmptyState icon={PenSquare} title="No ideas yet" />
           )}
         </div>
       </div>

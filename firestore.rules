@@ -58,7 +58,14 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if signedIn();
         allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
-        allow update, delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+        // Any signed-in user may bump likesCount; author/admin can delete.
+        allow update: if signedIn();
+        allow delete: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
+
+        match /likes/{uid} {
+          allow read: if signedIn();
+          allow create, delete: if isUser(uid);
+        }
       }
     }
 

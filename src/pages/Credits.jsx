@@ -13,7 +13,7 @@ import {
 const REWARD_ICONS = { Pin, Rocket, BadgeCheck, Bot, Zap, Palette, Crown }
 
 export default function Credits() {
-  const { user, users, spendCredits, addCredits } = useStore()
+  const { user, users, spendCredits, addCredits, saveProfileFields } = useStore()
   const toast = useToast()
   const [copied, setCopied] = useState(false)
 
@@ -32,9 +32,27 @@ export default function Credits() {
     toast('Referral link copied!', { icon: Copy })
   }
 
+  // Map a reward → profile field(s) it unlocks, so redemptions actually apply.
+  const REWARD_EFFECT = {
+    r2: { boosted: true },        // Profile Boost
+    r3: { verified: true },       // Verified Badge
+    r4: { aiPersona: true },      // Custom AI Persona
+    r6: { premiumTheme: true },   // Profile Theme
+    r7: { topDev: true },         // "Top Dev" Badge
+  }
+
   const redeem = async (r) => {
-    if (await spendCredits(r.cost)) toast(`Redeemed: ${r.name}`, { tone: 'success' })
-    else toast('Not enough credits', { tone: 'warning' })
+    if (user?.[Object.keys(REWARD_EFFECT[r.id] || {})[0]]) {
+      toast(`You already own ${r.name}`, { tone: 'warning' })
+      return
+    }
+    if (!(await spendCredits(r.cost))) {
+      toast('Not enough credits', { tone: 'warning' })
+      return
+    }
+    const effect = REWARD_EFFECT[r.id]
+    if (effect) saveProfileFields(effect)
+    toast(`Redeemed: ${r.name}${effect ? ' — unlocked!' : ''}`, { tone: 'success' })
   }
 
   // Daily login bonus via the trusted server (server enforces once-per-day);

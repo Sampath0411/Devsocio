@@ -271,6 +271,7 @@ export function subscribeComments(postId, onData) {
 export async function addComment(postId, comment) {
   const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
     likesCount: 0,
+    parentId: null,
     ...comment,
     createdAt: serverTimestamp(),
   })

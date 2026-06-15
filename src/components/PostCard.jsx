@@ -3,11 +3,11 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
-import { reportContent } from '../lib/db'
 import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock, VerifiedTick } from './ui'
+import { reportContent, repost } from '../lib/db'
 import { timeAgo } from '../lib/time'
 import { TYPE_META } from './postTypes'
-import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag } from './icons'
+import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag, X } from './icons'
 
 const REPORT_REASONS = ['Spam', 'Abuse', 'Misinformation', 'NSFW']
 
@@ -17,15 +17,40 @@ export default function PostCard({ post }) {
   const saved = useStore((s) => s.saved)
   const toggleSave = useStore((s) => s.toggleSave)
   const firebaseUser = useStore((s) => s.firebaseUser)
+  const me = useStore((s) => s.user)
   const users = useStore((s) => s.users)
   const toast = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [repostOpen, setRepostOpen] = useState(false)
+  const [quote, setQuote] = useState('')
+
+  const doRepost = async () => {
+    setRepostOpen(false)
+    const q = quote
+    setQuote('')
+    try {
+      await repost(post, me, q)
+      toast('Reposted to your feed', { tone: 'success' })
+    } catch {
+      toast('Could not repost', { tone: 'warning' })
+    }
+  }
+
+  const share = async () => {
+    const url = `${window.location.origin}/post/${post.postId}`
+    try {
+      if (navigator.share) await navigator.share({ title: 'DevSocio post', url })
+      else { await navigator.clipboard.writeText(url); toast('Link copied!', { tone: 'success' }) }
+    } catch { /* user cancelled */ }
+  }
 
   const meta = TYPE_META[post.type] || TYPE_META['Code Snippet']
   const TypeIcon = meta.Icon
   const liked = !!likes[post.postId]
   const isSaved = !!saved[post.postId]
-  const likeCount = (post.likes || 0) + (liked ? 1 : 0)
+  // post.likes is the server counter (already includes my like); `liked` only
+  // drives the heart animation — adding it would double-count.
+  const likeCount = post.likes || 0
   // Live verified status of the author (post stores only an author snapshot).
   const authorUser = users.find((u) => u.uid === (post.authorUid || post.author?.uid) || u.username === post.author?.username)
 
@@ -118,6 +143,21 @@ export default function PostCard({ post }) {
         <GradientBlock variant={post.image} label={post.type} />
       ) : null}
 
+      {/* quoted (reposted) post */}
+      {post.repostOf && (
+        <Link to={`/post/${post.repostOf.postId}`}
+          className="block rounded-card border border-border bg-bg p-3 hover:border-primary/40">
+          <div className="mb-1 flex items-center gap-2 text-xs text-text-muted">
+            <Repeat2 size={13} /> {post.repostOf.author?.displayName || 'a dev'}
+            <span>@{post.repostOf.author?.username}</span>
+          </div>
+          <p className="line-clamp-3 text-sm text-text-primary">{post.repostOf.content}</p>
+          {post.repostOf.imageUrl && (
+            <img src={post.repostOf.imageUrl} alt="" className="mt-2 max-h-40 w-full rounded-input object-cover" />
+          )}
+        </Link>
+      )}
+
       {/* AI analysis (PRD §4) */}
       {post.aiAnalysis && (
         <div className="rounded-card border border-primary/25 bg-primary/[0.06] p-3">
@@ -158,10 +198,12 @@ export default function PostCard({ post }) {
         >
           <MessageCircle size={18} /> <span>{post.commentsCount}</span>
         </Link>
-        <button className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-success">
+        <button onClick={() => setRepostOpen(true)}
+          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-success">
           <Repeat2 size={18} /> <span className="hidden sm:inline">Repost</span>
         </button>
-        <button className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-accent">
+        <button onClick={share}
+          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-accent">
           <Share2 size={17} /> <span className="hidden sm:inline">Share</span>
         </button>
         <button
@@ -175,6 +217,27 @@ export default function PostCard({ post }) {
           <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
         </button>
       </div>
+
+      {/* repost / quote modal */}
+      {repostOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setRepostOpen(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="card relative z-10 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-1.5 font-display text-base font-bold"><Repeat2 size={16} /> Repost</h3>
+              <button onClick={() => setRepostOpen(false)} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
+            </div>
+            <textarea className="input min-h-[80px] resize-none" placeholder="Add a comment (optional)…"
+              value={quote} onChange={(e) => setQuote(e.target.value)} />
+            <div className="rounded-card border border-border bg-bg p-2.5 text-xs text-text-muted">
+              <span className="font-semibold text-text-primary">@{post.author?.username}</span> · {(post.content || '').slice(0, 100)}
+            </div>
+            <div className="flex justify-end">
+              <button onClick={doRepost} className="btn-primary"><Repeat2 size={15} /> Repost</button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.article>
   )
 }
