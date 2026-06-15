@@ -11,6 +11,7 @@ import {
   subscribeMyLikes,
   subscribeMySaves,
   subscribeMyFollowing,
+  touchPresence,
 } from './lib/db'
 import { useStore } from './store/useStore'
 import { ToastProvider } from './components/Toast'
@@ -30,6 +31,7 @@ import Messages from './pages/Messages'
 import Notifications from './pages/Notifications'
 import PostDetail from './pages/PostDetail'
 import Admin from './pages/Admin'
+import Settings from './pages/Settings'
 
 // Auth guard — protected routes redirect to /login (PRD §9).
 function Protected({ children, wide }) {
@@ -64,12 +66,19 @@ export default function App() {
 
     const stopGraph = () => { unsubGraph.forEach((fn) => fn?.()); unsubGraph = [] }
 
+    let presenceTimer = null
+    const stopPresence = () => { if (presenceTimer) clearInterval(presenceTimer); presenceTimer = null }
+
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       unsubProfile?.()
       unsubProfile = null
       stopGraph()
+      stopPresence()
       setFirebaseUser(u)
       if (u) {
+        // Heartbeat: stamp lastActiveAt now and every ~60s for online status.
+        touchPresence(u.uid)
+        presenceTimer = setInterval(() => touchPresence(u.uid), 60 * 1000)
         // Live social graph for the signed-in user.
         unsubGraph = [
           subscribeMyLikes(u.uid, setLikes),
@@ -105,6 +114,7 @@ export default function App() {
       unsubPosts?.()
       unsubUsers?.()
       stopGraph()
+      stopPresence()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -130,6 +140,7 @@ export default function App() {
           <Route path="/messages/:id" element={<Protected wide><Messages /></Protected>} />
           <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
           <Route path="/credits" element={<Protected wide><Credits /></Protected>} />
+          <Route path="/settings" element={<Protected wide><Settings /></Protected>} />
           <Route path="/post/:id" element={<Protected><PostDetail /></Protected>} />
           <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
 

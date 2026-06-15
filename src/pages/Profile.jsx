@@ -3,11 +3,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
-import { Avatar, LevelBadge, StackPill, EmptyState } from '../components/ui'
-import { fetchProfileByUsername, requestCollab } from '../lib/db'
+import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge } from '../components/ui'
+import { fetchProfileByUsername, requestCollab, isOnline } from '../lib/db'
+import { formatNum } from '../lib/time'
 import {
   Handshake, Rocket, Coins, Bookmark, PenSquare,
-  GithubMark, Link2, Settings, MessageCircle,
+  Settings, MessageCircle, Circle,
 } from '../components/icons'
 
 const TABS = ['Posts', 'Projects', 'Ideas', 'Saved']
@@ -62,7 +63,7 @@ export default function Profile() {
         className="h-36 w-full rounded-card bg-cover bg-center"
         style={profile.coverUrl
           ? { backgroundImage: `url(${profile.coverUrl})` }
-          : { background: 'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)' }}
+          : { background: profile.banner || 'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)' }}
       />
 
       <div className="-mt-10 px-2">
@@ -91,11 +92,22 @@ export default function Profile() {
         </div>
 
         <div className="mt-3">
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-2xl font-bold">{profile.displayName}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="flex items-center gap-1.5 font-display text-2xl font-bold">
+              {profile.displayName}
+              {profile.verified && <VerifiedTick size={20} />}
+            </h1>
             <LevelBadge level={profile.devLevel} />
+            {profile.moderator && <ModBadge />}
           </div>
-          <p className="text-sm text-text-muted">@{profile.username}</p>
+          <p className="flex items-center gap-2 text-sm text-text-muted">
+            @{profile.username}
+            {isOnline(profile) && (
+              <span className="flex items-center gap-1 text-success">
+                <Circle size={7} fill="currentColor" strokeWidth={0} /> online
+              </span>
+            )}
+          </p>
           <p className="mt-2 text-sm">{profile.bio}</p>
 
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -107,12 +119,7 @@ export default function Profile() {
             {profile.lookingForCofounder && <span className="pill border border-warning/40 text-warning"><Rocket size={11} /> Looking for Co-founder</span>}
           </div>
 
-          {Object.keys(links).length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-accent">
-              {links.github && <span className="flex items-center gap-1"><GithubMark size={14} /> github</span>}
-              {links.portfolio && <span className="flex items-center gap-1"><Link2 size={14} /> {links.portfolio}</span>}
-            </div>
-          )}
+          <SocialLinks links={links} />
 
           <div className="mt-4 flex gap-6 text-sm">
             <Stat label="Posts" value={profile.postsCount ?? userPosts.length} />
@@ -121,7 +128,7 @@ export default function Profile() {
             {isMe && (
               <span className="flex items-center gap-1.5">
                 <Coins size={16} className="text-warning" />
-                <span className="text-lg font-bold text-warning">{profile.credits}</span>
+                <span className="text-lg font-bold text-warning" title={String(profile.credits ?? 0)}>{formatNum(profile.credits)}</span>
                 <span className="text-xs text-text-muted">credits</span>
               </span>
             )}
@@ -156,7 +163,7 @@ export default function Profile() {
 function Stat({ label, value }) {
   return (
     <div>
-      <span className="text-lg font-bold">{value}</span> <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-lg font-bold">{formatNum(value)}</span> <span className="text-xs text-text-muted">{label}</span>
     </div>
   )
 }

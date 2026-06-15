@@ -51,6 +51,7 @@ export {
   Link2,
   Eye,
   ShieldAlert,
+  Shield,
   Flag,
   Menu,
   PenSquare,

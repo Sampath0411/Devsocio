@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar } from '../components/ui'
 import { earnCredits } from '../lib/credits'
+import { formatNum } from '../lib/time'
 import { REWARDS, EARN_RULES } from '../data/mock'
 import {
   Coins, Copy, Check, Gift, Trophy, Plus,
@@ -58,7 +59,7 @@ export default function Credits() {
         <div>
           <p className="text-sm text-text-muted">Your balance</p>
           <p className="flex items-center gap-2 font-display text-4xl font-extrabold text-warning">
-            <Coins size={30} /> {user?.credits ?? 0}
+            <Coins size={30} /> <span title={String(user?.credits ?? 0)}>{formatNum(user?.credits ?? 0)}</span>
           </p>
         </div>
         <button onClick={dailyLogin} className="btn-ghost text-xs"><Plus size={14} /> Daily login (+5)</button>
@@ -99,7 +100,7 @@ export default function Credits() {
                 <span className="w-5 font-bold text-text-muted">{row.rank}</span>
                 <Avatar src={row.user.avatar} alt={row.user.displayName} size={28} />
                 <span className="flex-1 truncate">{row.user.displayName}</span>
-                <span className="flex items-center gap-1 text-xs text-warning"><Coins size={12} /> {row.credits}</span>
+                <span className="flex items-center gap-1 text-xs text-warning"><Coins size={12} /> {formatNum(row.credits)}</span>
               </li>
             ))}
           </ol>

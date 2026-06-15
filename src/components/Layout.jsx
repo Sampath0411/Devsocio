@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { logout as fbLogout, isAdmin } from '../lib/auth'
 import { subscribeUnreadCount } from '../lib/db'
+import { formatNum } from '../lib/time'
 import { Avatar } from './ui'
 import {
   Home, Compass, Lightbulb, Mail, Bell, Search, Plus,
@@ -102,12 +103,13 @@ function ProfileMenu() {
           {/* Credits surfaced here (moved out of the nav) */}
           <Link to="/credits" onClick={() => setOpen(false)} className="my-1 flex items-center justify-between rounded-input border border-warning/30 bg-warning/[0.07] px-2.5 py-2">
             <span className="flex items-center gap-2 text-sm text-warning"><Coins size={16} /> Credits</span>
-            <span className="text-sm font-bold text-warning">{user.credits}</span>
+            <span className="text-sm font-bold text-warning">{formatNum(user.credits)}</span>
           </Link>
 
           <div className="my-1 h-px bg-border" />
           <Link to={`/profile/${user.username}`} onClick={() => setOpen(false)} className={item}><User size={16} /> Profile</Link>
-          <Link to="/profile/edit" onClick={() => setOpen(false)} className={item}><Settings size={16} /> Edit profile</Link>
+          <Link to="/profile/edit" onClick={() => setOpen(false)} className={item}><User size={16} /> Edit profile</Link>
+          <Link to="/settings" onClick={() => setOpen(false)} className={item}><Settings size={16} /> Settings</Link>
           {isAdmin(firebaseUser) && (
             <Link to="/admin" onClick={() => setOpen(false)} className={item}><ShieldAlert size={16} /> Admin panel</Link>
           )}
@@ -258,7 +260,7 @@ function RightPanel() {
               <span className="w-4 text-text-muted">{row.rank}</span>
               <Avatar src={row.user.avatar} alt={row.user.displayName} size={26} />
               <span className="flex-1 truncate">{row.user.displayName}</span>
-              <span className="flex items-center gap-1 text-xs text-warning"><Coins size={12} /> {row.credits}</span>
+              <span className="flex items-center gap-1 text-xs text-warning"><Coins size={12} /> {formatNum(row.credits)}</span>
             </li>
           ))}
         </ol>

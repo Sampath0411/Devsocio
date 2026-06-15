@@ -2,11 +2,22 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { Avatar, StackPill, AILoader } from '../components/ui'
+import { Avatar, StackPill, AILoader, SocialLinks } from '../components/ui'
 import { generateBio } from '../lib/ai'
 import { uploadImage, cloudinaryConfigured } from '../lib/upload'
+import { detectLink } from '../lib/links'
 import { STACK_COLORS } from '../data/mock'
-import { Sparkles, Camera, Handshake, Rocket } from '../components/icons'
+import { Sparkles, Camera, Handshake, Rocket, Plus, X } from '../components/icons'
+
+// Preset banner gradients users can pick (PRD §3.2.1 cover photo).
+const BANNERS = [
+  'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)',
+  'linear-gradient(120deg,#FF4C4C,#FFB800)',
+  'linear-gradient(120deg,#00C896,#00E5FF)',
+  'linear-gradient(120deg,#6C63FF,#FF4C4C)',
+  'linear-gradient(120deg,#FFB800,#FF7043)',
+  'linear-gradient(120deg,#0A66C2,#00E5FF)',
+]
 
 const STACK_OPTIONS = Object.keys(STACK_COLORS)
 
@@ -21,11 +32,28 @@ export default function EditProfile() {
     techStack: user?.techStack || [],
     avatar: user?.avatar || '',
     coverUrl: user?.coverUrl || '',
+    banner: user?.banner || '',
+    links: user?.links || {},
     openToCollab: user?.openToCollab ?? false,
     lookingForCofounder: user?.lookingForCofounder ?? false,
   })
   const [genning, setGenning] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [linkInput, setLinkInput] = useState('')
+
+  // Add a pasted social/portfolio URL → auto-detect platform + handle.
+  const addLink = () => {
+    const detected = detectLink(linkInput)
+    if (!detected) return
+    setForm((f) => ({ ...f, links: { ...f.links, [detected.platform]: detected } }))
+    setLinkInput('')
+  }
+  const removeLink = (platform) =>
+    setForm((f) => {
+      const next = { ...f.links }
+      delete next[platform]
+      return { ...f, links: next }
+    })
 
   const onPickPhoto = async (e) => {
     const file = e.target.files?.[0]
@@ -95,15 +123,46 @@ export default function EditProfile() {
           </div>
         </div>
 
+        {/* Banner — pick a preset gradient, or paste a cover image URL */}
         <div>
-          <label className="mb-1 block text-xs font-semibold text-text-muted">Cover image URL</label>
-          <input className="input text-xs" placeholder="https://… (optional)"
+          <label className="mb-1.5 block text-xs font-semibold text-text-muted">Profile banner</label>
+          <div className="h-20 w-full rounded-card bg-cover bg-center"
+            style={form.coverUrl ? { backgroundImage: `url(${form.coverUrl})` } : { background: form.banner || BANNERS[0] }} />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {BANNERS.map((b) => (
+              <button key={b} type="button" onClick={() => setForm({ ...form, banner: b, coverUrl: '' })}
+                className={`h-7 w-10 rounded-input border-2 ${form.banner === b && !form.coverUrl ? 'border-primary' : 'border-border'}`}
+                style={{ background: b }} />
+            ))}
+          </div>
+          <input className="input mt-2 text-xs" placeholder="…or paste a cover image URL"
             value={form.coverUrl} onChange={(e) => setForm({ ...form, coverUrl: e.target.value })} />
         </div>
 
         <div>
           <label className="mb-1 block text-xs font-semibold text-text-muted">Display name</label>
           <input className="input" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
+        </div>
+
+        {/* Social links — paste a URL, icon + handle auto-detected */}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-text-muted">Social & portfolio links</label>
+          <div className="flex gap-2">
+            <input className="input text-xs" placeholder="Paste GitHub / LinkedIn / X / portfolio URL…"
+              value={linkInput} onChange={(e) => setLinkInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLink())} />
+            <button type="button" onClick={addLink} disabled={!linkInput.trim()} className="btn-primary shrink-0 !px-3"><Plus size={15} /></button>
+          </div>
+          {Object.keys(form.links).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.values(form.links).map((l) => (
+                <span key={l.platform} className="pill border border-border text-accent">
+                  {l.handle}
+                  <button type="button" onClick={() => removeLink(l.platform)} className="ml-1 text-text-muted hover:text-danger"><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

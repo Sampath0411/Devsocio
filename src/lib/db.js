@@ -41,6 +41,16 @@ export async function changeCredits(uid, delta) {
   await updateDoc(doc(db, 'users', uid), { credits: increment(delta) })
 }
 
+// Set an exact credit balance (admin repair for corrupted values).
+export async function setCredits(uid, value) {
+  await updateDoc(doc(db, 'users', uid), { credits: Math.max(0, Math.round(Number(value) || 0)) })
+}
+
+// Admin: toggle a flag on any user (verified / moderator badges).
+export async function setUserFlag(uid, field, value) {
+  await updateDoc(doc(db, 'users', uid), { [field]: value })
+}
+
 export async function updateProfileDoc(uid, fields) {
   await updateDoc(doc(db, 'users', uid), fields)
 }
@@ -415,6 +425,15 @@ export function subscribeThread(cid, onData) {
     onData([])
     return () => {}
   }
+}
+
+// Typing indicator: stamp typing.<uid> with a timestamp; the peer treats it
+// as "typing" if it's within the last few seconds.
+export async function setTyping(cid, uid, isTyping) {
+  if (!cid || !uid) return
+  await updateDoc(doc(db, 'conversations', cid), {
+    [`typing.${uid}`]: isTyping ? Date.now() : 0,
+  }).catch(() => {})
 }
 
 export async function sendMessage(meUid, otherUid, text, meta = {}) {

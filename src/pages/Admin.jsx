@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { Avatar } from '../components/ui'
-import { changeCredits, subscribeReports, resolveReport, deletePost } from '../lib/db'
-import { timeAgo } from '../lib/time'
+import { Avatar, VerifiedTick } from '../components/ui'
+import { changeCredits, setCredits, setUserFlag, subscribeReports, resolveReport, deletePost } from '../lib/db'
+import { timeAgo, formatNum } from '../lib/time'
 import {
   ShieldAlert, Users, FileText, Mail, Coins, Plus, Flag, Trash2, Check,
-  GithubMark, GoogleMark,
+  BadgeCheck, Shield, GithubMark, GoogleMark,
 } from '../components/icons'
 
 // Sign-up method → display label, colour and icon.
@@ -24,10 +24,11 @@ const providerKey = (u) => {
   return 'email'
 }
 
-// One member row with credit-granting controls (admin only).
+// One member row with credit + badge controls (admin only).
 function MemberRow({ u }) {
   const toast = useToast()
   const [amount, setAmount] = useState('')
+  const [exact, setExact] = useState('')
   const [busy, setBusy] = useState(false)
   const meta = PROVIDERS.find((p) => p.key === providerKey(u))
   const Icon = meta.Icon
@@ -37,13 +38,32 @@ function MemberRow({ u }) {
     if (!delta) return
     setBusy(true)
     try {
-      await changeCredits(u.uid, delta) // live credits update reflects via onSnapshot
+      await changeCredits(u.uid, delta)
       toast(`${delta > 0 ? '+' : ''}${delta} credits → ${u.displayName}`, { icon: Coins })
       setAmount('')
     } catch {
       toast('Could not update credits (check admin rules)', { tone: 'warning' })
-    } finally {
-      setBusy(false)
+    } finally { setBusy(false) }
+  }
+
+  const setExactCredits = async () => {
+    if (exact === '') return
+    setBusy(true)
+    try {
+      await setCredits(u.uid, exact)
+      toast(`Set ${u.displayName}'s credits to ${formatNum(exact)}`, { icon: Coins })
+      setExact('')
+    } catch {
+      toast('Could not set credits', { tone: 'warning' })
+    } finally { setBusy(false) }
+  }
+
+  const toggleFlag = async (field) => {
+    try {
+      await setUserFlag(u.uid, field, !u[field])
+      toast(`${field} ${!u[field] ? 'granted to' : 'removed from'} ${u.displayName}`, { tone: 'success' })
+    } catch {
+      toast('Could not update badge', { tone: 'warning' })
     }
   }
 
@@ -51,35 +71,46 @@ function MemberRow({ u }) {
     <div className="flex flex-wrap items-center gap-3 px-4 py-3">
       <Avatar src={u.avatar} alt={u.displayName} size={36} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{u.displayName}</p>
+        <p className="flex items-center gap-1 truncate text-sm font-semibold">
+          {u.displayName}
+          {u.verified && <VerifiedTick size={14} />}
+          {u.moderator && <Shield size={12} className="text-success" />}
+        </p>
         <p className="truncate text-xs text-text-muted">@{u.username}{u.email ? ` · ${u.email}` : ''}</p>
       </div>
 
-      <span className="flex items-center gap-1 text-sm font-bold text-warning">
-        <Coins size={14} /> {u.credits || 0}
+      <span className="flex items-center gap-1 text-sm font-bold text-warning" title={String(u.credits ?? 0)}>
+        <Coins size={14} /> {formatNum(u.credits || 0)}
       </span>
 
       <span className="hidden pill border border-border sm:inline-flex" style={{ color: meta.color }}>
         <Icon size={12} /> {meta.label}
       </span>
 
+      {/* badge toggles */}
+      <div className="flex items-center gap-1">
+        <button onClick={() => toggleFlag('verified')} title="Toggle verified"
+          className={`grid h-7 w-7 place-items-center rounded-input border ${u.verified ? 'border-accent text-accent' : 'border-border text-text-muted'}`}>
+          <BadgeCheck size={14} />
+        </button>
+        <button onClick={() => toggleFlag('moderator')} title="Toggle moderator"
+          className={`grid h-7 w-7 place-items-center rounded-input border ${u.moderator ? 'border-success text-success' : 'border-border text-text-muted'}`}>
+          <Shield size={14} />
+        </button>
+      </div>
+
       {/* grant credits */}
       <div className="flex items-center gap-1">
-        <button onClick={() => grant(50)} disabled={busy}
-          className="btn-ghost !px-2 !py-1.5 text-xs">+50</button>
-        <button onClick={() => grant(100)} disabled={busy}
-          className="btn-ghost !px-2 !py-1.5 text-xs">+100</button>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="amt"
-          className="input !w-16 !py-1.5 text-xs"
-        />
-        <button onClick={() => grant(amount)} disabled={busy || !amount}
-          className="btn-primary !px-2.5 !py-1.5 text-xs">
+        <button onClick={() => grant(50)} disabled={busy} className="btn-ghost !px-2 !py-1.5 text-xs">+50</button>
+        <button onClick={() => grant(100)} disabled={busy} className="btn-ghost !px-2 !py-1.5 text-xs">+100</button>
+        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="±amt"
+          className="input !w-16 !py-1.5 text-xs" />
+        <button onClick={() => grant(amount)} disabled={busy || !amount} className="btn-primary !px-2.5 !py-1.5 text-xs">
           <Plus size={12} /> Add
         </button>
+        <input type="number" value={exact} onChange={(e) => setExact(e.target.value)} placeholder="set="
+          className="input !w-16 !py-1.5 text-xs" />
+        <button onClick={setExactCredits} disabled={busy || exact === ''} className="btn-ghost !px-2 !py-1.5 text-xs">Set</button>
       </div>
     </div>
   )

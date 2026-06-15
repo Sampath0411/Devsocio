@@ -1,3 +1,18 @@
+// Compact number formatting: 1000 -> "1k", 1500 -> "1.5k", 2_000_000 -> "2M".
+// Guards against corrupted/huge values so the UI never shows "1e+158".
+export function formatNum(value) {
+  let n = Number(value)
+  if (!Number.isFinite(n)) return '0'
+  const sign = n < 0 ? '-' : ''
+  n = Math.abs(n)
+  const trim = (x) => x.toFixed(1).replace(/\.0$/, '')
+  if (n >= 1e12) return sign + trim(n / 1e12) + 'T'
+  if (n >= 1e9) return sign + trim(n / 1e9) + 'B'
+  if (n >= 1e6) return sign + trim(n / 1e6) + 'M'
+  if (n >= 1e3) return sign + trim(n / 1e3) + 'k'
+  return sign + Math.round(n).toString()
+}
+
 // Format any timestamp shape into a short relative label ("now", "5m", "2h").
 // Handles Firestore Timestamp ({seconds,nanoseconds} or .toDate()), Date,
 // numeric epoch, ISO string, or our legacy mock strings ("2h") — and null.

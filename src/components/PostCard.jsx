@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { reportContent } from '../lib/db'
-import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock } from './ui'
+import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock, VerifiedTick } from './ui'
 import { timeAgo } from '../lib/time'
 import { TYPE_META } from './postTypes'
 import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag } from './icons'
@@ -17,6 +17,7 @@ export default function PostCard({ post }) {
   const saved = useStore((s) => s.saved)
   const toggleSave = useStore((s) => s.toggleSave)
   const firebaseUser = useStore((s) => s.firebaseUser)
+  const users = useStore((s) => s.users)
   const toast = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -25,6 +26,8 @@ export default function PostCard({ post }) {
   const liked = !!likes[post.postId]
   const isSaved = !!saved[post.postId]
   const likeCount = (post.likes || 0) + (liked ? 1 : 0)
+  // Live verified status of the author (post stores only an author snapshot).
+  const authorUser = users.find((u) => u.uid === (post.authorUid || post.author?.uid) || u.username === post.author?.username)
 
   const report = async (reason) => {
     setMenuOpen(false)
@@ -59,9 +62,10 @@ export default function PostCard({ post }) {
           <div className="flex items-center gap-2">
             <Link
               to={`/profile/${post.author.username}`}
-              className="truncate font-semibold hover:underline"
+              className="flex items-center gap-1 truncate font-semibold hover:underline"
             >
               {post.author.displayName}
+              {authorUser?.verified && <VerifiedTick size={14} />}
             </Link>
             <span className="truncate text-sm text-text-muted">@{post.author.username}</span>
             <span className="text-text-muted">·</span>

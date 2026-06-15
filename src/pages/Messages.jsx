@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { Avatar, EmptyState } from '../components/ui'
-import { subscribeConversations, subscribeThread, sendMessage, convoId, acceptCollab } from '../lib/db'
+import { Avatar, EmptyState, VerifiedTick } from '../components/ui'
+import { subscribeConversations, subscribeThread, sendMessage, convoId, acceptCollab, setTyping, isOnline } from '../lib/db'
 import { timeAgo } from '../lib/time'
 import { Handshake, Send, Code2, Circle, Mail, ChevronLeft } from '../components/icons'
 
@@ -70,6 +70,20 @@ export default function Messages() {
   const openConvo = (c) => { setActiveId(c.id); setDraftTarget(null) }
   const backToList = () => { setActiveId(null); setDraftTarget(null); navigate('/messages') }
 
+  // Is the *other* member currently typing? (stamp within the last 4s.)
+  const otherTyping = (() => {
+    if (!active?.typing || !firebaseUser) return false
+    const otherUid = (active.members || []).find((m) => m !== firebaseUser.uid)
+    const ts = active.typing[otherUid] || 0
+    return Date.now() - ts < 4000
+  })()
+
+  // Throttle typing pings while the user edits the input.
+  const onType = (value) => {
+    setDraft(value)
+    if (activeId && firebaseUser) setTyping(activeId, firebaseUser.uid, value.length > 0)
+  }
+
   const accept = async (cid) => {
     try {
       await acceptCollab(cid)
@@ -85,6 +99,7 @@ export default function Messages() {
     const other = party(active)
     if (!other?.uid) return
     setDraft('')
+    setTyping(activeId, firebaseUser.uid, false)
     try {
       await sendMessage(firebaseUser.uid, other.uid, text)
     } catch {
@@ -112,7 +127,7 @@ export default function Messages() {
                 activeId === c.id ? 'bg-bg' : ''}`}>
               <span className="relative">
                 <Avatar src={p.avatar} alt={p.displayName} size={44} />
-                {c.online && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-surface bg-success" />}
+                {isOnline(p) && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-surface bg-success" />}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{p.displayName}</p>
@@ -142,13 +157,23 @@ export default function Messages() {
                 <button onClick={backToList} className="text-text-muted hover:text-text-primary md:hidden" aria-label="Back">
                   <ChevronLeft size={20} />
                 </button>
-                <Avatar src={p.avatar} alt={p.displayName} size={36} />
-                <div>
-                  <p className="text-sm font-semibold">{p.displayName}</p>
-                  <p className="flex items-center gap-1 text-xs text-success">
-                    {active.online && <Circle size={7} fill="currentColor" strokeWidth={0} />}
-                    {active.online ? 'online' : `@${p.username}`}
+                <span className="relative">
+                  <Avatar src={p.avatar} alt={p.displayName} size={38} />
+                  {isOnline(p) && <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-surface bg-success" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1 text-sm font-semibold">
+                    {p.displayName}{p.verified && <VerifiedTick size={14} />}
                   </p>
+                  {otherTyping ? (
+                    <p className="text-xs text-primary">typing…</p>
+                  ) : isOnline(p) ? (
+                    <p className="flex items-center gap-1 text-xs text-success">
+                      <Circle size={7} fill="currentColor" strokeWidth={0} /> online
+                    </p>
+                  ) : (
+                    <p className="text-xs text-text-muted">@{p.username}</p>
+                  )}
                 </div>
               </div>
 
@@ -175,19 +200,31 @@ export default function Messages() {
                   const mine = m.from === firebaseUser?.uid || m.from === 'me'
                   return (
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] rounded-card px-3.5 py-2 text-sm ${
-                        mine ? 'bg-primary text-white' : 'border border-border bg-bg'}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
+                        mine ? 'rounded-br-sm bg-primary text-white' : 'rounded-bl-sm border border-border bg-bg'}`}>
                         {m.text}
+                        {m.createdAt && (
+                          <span className={`mt-0.5 block text-[10px] ${mine ? 'text-white/60' : 'text-text-muted'}`}>{timeAgo(m.createdAt)}</span>
+                        )}
                       </div>
                     </div>
                   )
                 })}
+                {otherTyping && (
+                  <div className="flex justify-start">
+                    <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-border bg-bg px-3.5 py-2.5">
+                      {[0, 1, 2].map((i) => (
+                        <span key={i} className="h-1.5 w-1.5 rounded-full bg-text-muted animate-bounce-dot" style={{ animationDelay: `${i * 0.16}s` }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 border-t border-border p-3">
                 <button className="hidden text-text-muted hover:text-text-primary sm:block" title="Send code block"><Code2 size={20} /></button>
                 <input className="input" placeholder="Message…" value={draft}
-                  onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
+                  onChange={(e) => onType(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
                 <button onClick={send} disabled={!draft.trim()} className="btn-primary shrink-0"><Send size={15} /> Send</button>
               </div>
             </>

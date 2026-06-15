@@ -1,6 +1,66 @@
 import { motion } from 'framer-motion'
 import { STACK_COLORS, DEV_LEVELS } from '../data/mock'
-import { Heart, Sparkles, Circle } from './icons'
+import { PLATFORM_LABEL } from '../lib/links'
+import { Heart, Sparkles, Circle, BadgeCheck, Shield, GithubMark, Link2 } from './icons'
+
+// ---------- Social links row (icon auto-detected from the URL) ----------
+const PLATFORM_ICON = {
+  github: GithubMark,
+  // lucide doesn't ship brand glyphs for all of these, so use a link glyph
+  // tinted per-platform; GitHub keeps its brand mark.
+}
+const PLATFORM_COLOR = {
+  github: '#FFFFFF', linkedin: '#0A66C2', twitter: '#1DA1F2',
+  instagram: '#E1306C', youtube: '#FF0000', devto: '#8888AA', portfolio: '#00E5FF', link: '#00E5FF',
+}
+
+export function SocialLinks({ links }) {
+  const entries = Object.values(links || {}).filter((l) => l && l.url)
+  if (!entries.length) return null
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {entries.map((l) => {
+        const Icon = PLATFORM_ICON[l.platform] || Link2
+        const color = PLATFORM_COLOR[l.platform] || '#00E5FF'
+        return (
+          <a key={l.platform + l.url} href={l.url} target="_blank" rel="noreferrer"
+            className="pill border border-border hover:border-primary/50" style={{ color }}
+            title={PLATFORM_LABEL[l.platform] || 'Link'}>
+            <Icon size={13} /> {l.handle || PLATFORM_LABEL[l.platform]}
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
+// ---------- Verified tick (blue) + moderator badge (PRD §5.2 / §7.4) ----------
+export function VerifiedTick({ size = 16 }) {
+  return (
+    <span title="Verified" className="inline-grid place-items-center text-accent align-middle">
+      <BadgeCheck size={size} fill="currentColor" className="text-accent" stroke="#0D0D0D" strokeWidth={2.2} />
+    </span>
+  )
+}
+
+export function ModBadge() {
+  return (
+    <span className="pill border border-success/40 bg-success/10 text-success" title="Moderator">
+      <Shield size={11} /> Mod
+    </span>
+  )
+}
+
+// Name + inline badges, reused across cards/profile.
+export function NameWithBadges({ user, className = '' }) {
+  return (
+    <span className={`inline-flex items-center gap-1 ${className}`}>
+      {user?.displayName}
+      {user?.verified && <VerifiedTick size={15} />}
+      {user?.moderator && <Shield size={13} className="text-success" />}
+    </span>
+  )
+}
 
 // ---------- Tech-stack pill (PRD §3.2.1) ----------
 export function StackPill({ name }) {
