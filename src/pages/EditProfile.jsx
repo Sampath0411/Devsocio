@@ -6,8 +6,9 @@ import { Avatar, StackPill, AILoader, SocialLinks } from '../components/ui'
 import { generateBio } from '../lib/ai'
 import { uploadImage, cloudinaryConfigured } from '../lib/upload'
 import { detectLink } from '../lib/links'
+import { fetchRepos } from '../lib/github'
 import { STACK_COLORS } from '../data/mock'
-import { Sparkles, Camera, Handshake, Rocket, Plus, X } from '../components/icons'
+import { Sparkles, Camera, Handshake, Rocket, Plus, X, GithubMark, Check } from '../components/icons'
 
 // Preset banner gradients users can pick (PRD §3.2.1 cover photo).
 const BANNERS = [
@@ -40,6 +41,9 @@ export default function EditProfile() {
   const [genning, setGenning] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [linkInput, setLinkInput] = useState('')
+  const [githubInput, setGithubInput] = useState('')
+  const [ghBusy, setGhBusy] = useState(false)
+  const [ghResult, setGhResult] = useState(null)
 
   // Add a pasted social/portfolio URL → auto-detect platform + handle.
   const addLink = () => {
@@ -54,6 +58,33 @@ export default function EditProfile() {
       delete next[platform]
       return { ...f, links: next }
     })
+
+  // Dedicated GitHub connect: accepts a username OR a full github.com URL,
+  // verifies it via the public API, and stores it as the github link so the
+  // Projects tab can import repos.
+  const connectGithub = async () => {
+    const raw = githubInput.trim().replace(/^@/, '')
+    if (!raw) return
+    // Pull the username whether they typed a URL or a bare handle.
+    const handle = raw.includes('github.com')
+      ? (raw.split('github.com/')[1] || '').split('/')[0].trim()
+      : raw
+    if (!handle) return
+    setGhBusy(true); setGhResult(null)
+    try {
+      const repos = await fetchRepos(handle)
+      setForm((f) => ({
+        ...f,
+        links: { ...f.links, github: { platform: 'github', url: `https://github.com/${handle}`, handle } },
+      }))
+      setGhResult({ ok: true, count: repos.length })
+      setGithubInput('')
+    } catch {
+      setGhResult({ ok: false })
+    } finally {
+      setGhBusy(false)
+    }
+  }
 
   const onPickPhoto = async (e) => {
     const file = e.target.files?.[0]
@@ -144,18 +175,51 @@ export default function EditProfile() {
           <input className="input" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
         </div>
 
-        {/* Social links — paste a URL, icon + handle auto-detected */}
+        {/* Connect GitHub — username or URL; verified + imports repos */}
+        <div className="rounded-card border border-border bg-bg p-3">
+          <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-text-muted">
+            <GithubMark size={14} /> Connect GitHub <span className="font-normal">(imports your repos to the Projects tab)</span>
+          </label>
+          {form.links?.github ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-sm">
+                <Check size={14} className="text-success" /> Connected as
+                <a href={form.links.github.url} target="_blank" rel="noreferrer" className="font-semibold text-accent">@{form.links.github.handle}</a>
+              </span>
+              <button type="button" onClick={() => removeLink('github')} className="btn-ghost !py-1 text-xs">Disconnect</button>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input className="input text-sm" placeholder="your-github-username"
+                  value={githubInput} onChange={(e) => { setGithubInput(e.target.value); setGhResult(null) }}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), connectGithub())} />
+                <button type="button" onClick={connectGithub} disabled={ghBusy || !githubInput.trim()} className="btn-primary shrink-0">
+                  {ghBusy ? 'Checking…' : 'Connect'}
+                </button>
+              </div>
+              {ghResult && !ghResult.ok && (
+                <p className="mt-1.5 text-xs text-danger">Couldn't find that GitHub user (or rate-limited). Check the username.</p>
+              )}
+            </>
+          )}
+          {ghResult?.ok && (
+            <p className="mt-1.5 text-xs text-success">Connected! Found {ghResult.count} public {ghResult.count === 1 ? 'repo' : 'repos'} to show on your profile.</p>
+          )}
+        </div>
+
+        {/* Other social / portfolio links — paste a URL, icon + handle auto-detected */}
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-text-muted">Social & portfolio links</label>
+          <label className="mb-1.5 block text-xs font-semibold text-text-muted">Other links (LinkedIn, X, portfolio…)</label>
           <div className="flex gap-2">
             <input className="input text-xs" placeholder="Paste GitHub / LinkedIn / X / portfolio URL…"
               value={linkInput} onChange={(e) => setLinkInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLink())} />
             <button type="button" onClick={addLink} disabled={!linkInput.trim()} className="btn-primary shrink-0 !px-3"><Plus size={15} /></button>
           </div>
-          {Object.keys(form.links).length > 0 && (
+          {Object.values(form.links).filter((l) => l.platform !== 'github').length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {Object.values(form.links).map((l) => (
+              {Object.values(form.links).filter((l) => l.platform !== 'github').map((l) => (
                 <span key={l.platform} className="pill border border-border text-accent">
                   {l.handle}
                   <button type="button" onClick={() => removeLink(l.platform)} className="ml-1 text-text-muted hover:text-danger"><X size={11} /></button>
