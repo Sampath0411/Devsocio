@@ -183,21 +183,28 @@ export default function Profile() {
           {tab === 'Posts' && (userPosts.length ? userPosts.map((p) => <PostCard key={p.postId} post={p} />)
             : <EmptyState icon={PenSquare} title="No posts yet — share your first build!" />)}
 
-          {tab === 'Projects' && (
-            !ghHandle ? (
-              <EmptyState icon={GithubMark} title={isMe
-                ? 'Link your GitHub in Edit Profile to import your repos here.'
-                : 'No GitHub linked yet.'} />
-            ) : repoErr ? (
-              <EmptyState icon={GithubMark} title="Couldn't load GitHub repos (rate limit or private account)." />
-            ) : reposLoading ? (
-              <p className="py-8 text-center text-sm text-text-muted">Loading repos from @{ghHandle}…</p>
-            ) : repos.length === 0 ? (
-              <EmptyState icon={GithubMark} title={`@${ghHandle} has no public repos yet.`} />
-            ) : (
+          {tab === 'Projects' && (() => {
+            const curated = profile.projects || []
+            // Show curated projects if any; else auto-import all GitHub repos.
+            const list = curated.length ? curated : repos
+            if (curated.length === 0 && !ghHandle) {
+              return <EmptyState icon={GithubMark} title={isMe
+                ? 'Add projects or connect GitHub in Edit Profile.'
+                : 'No projects yet.'} />
+            }
+            if (curated.length === 0 && repoErr) {
+              return <EmptyState icon={GithubMark} title="Couldn't load GitHub repos (rate limit or private account)." />
+            }
+            if (curated.length === 0 && reposLoading) {
+              return <p className="py-8 text-center text-sm text-text-muted">Loading repos from @{ghHandle}…</p>
+            }
+            if (list.length === 0) {
+              return <EmptyState icon={GithubMark} title={isMe ? 'Add your projects in Edit Profile.' : 'No projects yet.'} />
+            }
+            return (
               <div className="grid gap-3 sm:grid-cols-2">
-                {repos.map((r) => (
-                  <a key={r.id} href={r.url} target="_blank" rel="noreferrer"
+                {list.map((r) => (
+                  <a key={r.url || r.id} href={r.url} target="_blank" rel="noreferrer"
                     className="card hover:border-primary/50">
                     <div className="flex items-center gap-2">
                       <GithubMark size={15} />
@@ -206,13 +213,13 @@ export default function Profile() {
                     {r.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{r.description}</p>}
                     <div className="mt-2 flex items-center gap-3 text-xs text-text-muted">
                       {r.language && <span className="flex items-center gap-1"><Circle size={8} fill="currentColor" strokeWidth={0} className="text-primary" /> {r.language}</span>}
-                      <span className="flex items-center gap-1"><Star size={12} /> {formatNum(r.stars)}</span>
+                      {r.stars != null && <span className="flex items-center gap-1"><Star size={12} /> {formatNum(r.stars)}</span>}
                     </div>
                   </a>
                 ))}
               </div>
             )
-          )}
+          })()}
 
           {tab === 'Ideas' && (
             <EmptyState icon={PenSquare} title="No ideas yet" />
