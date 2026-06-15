@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { Avatar, StackPill, AILoader, SocialLinks } from '../components/ui'
+import { Avatar, StackPill, AILoader } from '../components/ui'
+import GithubManager from '../components/GithubManager'
 import { generateBio } from '../lib/ai'
 import { uploadImage, cloudinaryConfigured } from '../lib/upload'
 import { detectLink } from '../lib/links'
-import { fetchRepos } from '../lib/github'
 import { STACK_COLORS } from '../data/mock'
-import { Sparkles, Camera, Handshake, Rocket, Plus, X, GithubMark, Check } from '../components/icons'
+import { Sparkles, Camera, Handshake, Rocket, Plus, X } from '../components/icons'
 
 // Preset banner gradients users can pick (PRD §3.2.1 cover photo).
 const BANNERS = [
@@ -42,11 +42,6 @@ export default function EditProfile() {
   const [genning, setGenning] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [linkInput, setLinkInput] = useState('')
-  const [githubInput, setGithubInput] = useState('')
-  const [ghBusy, setGhBusy] = useState(false)
-  const [ghRepos, setGhRepos] = useState([]) // fetched repos to pick from
-  const [proj, setProj] = useState({ name: '', url: '', description: '', language: '' })
-  const [ghResult, setGhResult] = useState(null)
 
   // Add a pasted social/portfolio URL → auto-detect platform + handle.
   const addLink = () => {
@@ -62,49 +57,15 @@ export default function EditProfile() {
       return { ...f, links: next }
     })
 
-  // Dedicated GitHub connect: accepts a username OR a full github.com URL,
-  // verifies it via the public API, and stores it as the github link so the
-  // Projects tab can import repos.
-  const connectGithub = async () => {
-    const raw = githubInput.trim().replace(/^@/, '')
-    if (!raw) return
-    // Pull the username whether they typed a URL or a bare handle.
-    const handle = raw.includes('github.com')
-      ? (raw.split('github.com/')[1] || '').split('/')[0].trim()
-      : raw
-    if (!handle) return
-    setGhBusy(true); setGhResult(null)
-    try {
-      const repos = await fetchRepos(handle)
-      setGhRepos(repos)
-      setForm((f) => ({
-        ...f,
-        links: { ...f.links, github: { platform: 'github', url: `https://github.com/${handle}`, handle } },
-      }))
-      setGhResult({ ok: true, count: repos.length })
-      setGithubInput('')
-    } catch {
-      setGhResult({ ok: false })
-    } finally {
-      setGhBusy(false)
-    }
-  }
-
-  // Add/remove a project on the profile (from a GitHub repo or entered manually).
-  const hasProject = (url) => form.projects.some((p) => p.url === url)
-  const addProject = (p) => {
-    if (!p.url?.trim() || hasProject(p.url)) return
-    setForm((f) => ({ ...f, projects: [...f.projects, p] }))
-  }
-  const addRepoProject = (r) =>
-    addProject({ name: r.name, url: r.url, description: r.description, language: r.language, stars: r.stars, source: 'github' })
-  const addManualProject = () => {
-    if (!proj.name.trim() || !proj.url.trim()) return
-    addProject({ ...proj, source: 'manual' })
-    setProj({ name: '', url: '', description: '', language: '' })
-  }
-  const removeProject = (url) =>
-    setForm((f) => ({ ...f, projects: f.projects.filter((p) => p.url !== url) }))
+  // GitHub link + featured projects are managed by <GithubManager/>.
+  const setGithubLink = (link) =>
+    setForm((f) => {
+      const next = { ...f.links }
+      if (link) next.github = link
+      else delete next.github
+      return { ...f, links: next }
+    })
+  const setProjects = (projects) => setForm((f) => ({ ...f, projects }))
 
   const onPickPhoto = async (e) => {
     const file = e.target.files?.[0]
@@ -195,84 +156,13 @@ export default function EditProfile() {
           <input className="input" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
         </div>
 
-        {/* Connect GitHub — username or URL; verified + imports repos */}
-        <div className="rounded-card border border-border bg-bg p-3">
-          <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-text-muted">
-            <GithubMark size={14} /> Connect GitHub <span className="font-normal">(imports your repos to the Projects tab)</span>
-          </label>
-          {form.links?.github ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5 text-sm">
-                <Check size={14} className="text-success" /> Connected as
-                <a href={form.links.github.url} target="_blank" rel="noreferrer" className="font-semibold text-accent">@{form.links.github.handle}</a>
-              </span>
-              <button type="button" onClick={() => removeLink('github')} className="btn-ghost !py-1 text-xs">Disconnect</button>
-            </div>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                <input className="input text-sm" placeholder="your-github-username"
-                  value={githubInput} onChange={(e) => { setGithubInput(e.target.value); setGhResult(null) }}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), connectGithub())} />
-                <button type="button" onClick={connectGithub} disabled={ghBusy || !githubInput.trim()} className="btn-primary shrink-0">
-                  {ghBusy ? 'Checking…' : 'Connect'}
-                </button>
-              </div>
-              {ghResult && !ghResult.ok && (
-                <p className="mt-1.5 text-xs text-danger">Couldn't find that GitHub user (or rate-limited). Check the username.</p>
-              )}
-            </>
-          )}
-          {ghResult?.ok && (
-            <p className="mt-1.5 text-xs text-success">Connected! Found {ghResult.count} public {ghResult.count === 1 ? 'repo' : 'repos'} to show on your profile.</p>
-          )}
-        </div>
-
-        {/* Featured projects — pick GitHub repos or add manually */}
-        <div className="rounded-card border border-border bg-bg p-3">
-          <label className="mb-1.5 block text-xs font-semibold text-text-muted">Featured projects</label>
-
-          {/* already-added projects */}
-          {form.projects.length > 0 && (
-            <div className="mb-3 space-y-1.5">
-              {form.projects.map((p) => (
-                <div key={p.url} className="flex items-center gap-2 rounded-input border border-border px-2.5 py-1.5">
-                  <GithubMark size={13} className="shrink-0 text-text-muted" />
-                  <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-                  <button type="button" onClick={() => removeProject(p.url)} className="text-text-muted hover:text-danger"><X size={13} /></button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* pick from fetched GitHub repos */}
-          {ghRepos.length > 0 && (
-            <div className="mb-3">
-              <p className="mb-1 text-[11px] text-text-muted">Add from your GitHub:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {ghRepos.filter((r) => !hasProject(r.url)).map((r) => (
-                  <button key={r.id} type="button" onClick={() => addRepoProject(r)}
-                    className="pill border border-primary/40 text-primary hover:bg-primary/10">
-                    <Plus size={11} /> {r.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* add manually */}
-          <p className="mb-1 text-[11px] text-text-muted">Or add any project:</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input className="input text-xs" placeholder="Project name"
-              value={proj.name} onChange={(e) => setProj({ ...proj, name: e.target.value })} />
-            <input className="input text-xs" placeholder="Link (https://…)"
-              value={proj.url} onChange={(e) => setProj({ ...proj, url: e.target.value })} />
-            <input className="input text-xs sm:col-span-2" placeholder="Short description (optional)"
-              value={proj.description} onChange={(e) => setProj({ ...proj, description: e.target.value })} />
-          </div>
-          <button type="button" onClick={addManualProject} disabled={!proj.name.trim() || !proj.url.trim()}
-            className="btn-ghost mt-2 text-xs"><Plus size={13} /> Add project</button>
-        </div>
+        {/* GitHub integration + featured projects */}
+        <GithubManager
+          link={form.links?.github}
+          projects={form.projects}
+          onLink={setGithubLink}
+          onProjects={setProjects}
+        />
 
         {/* Other social / portfolio links — paste a URL, icon + handle auto-detected */}
         <div>

@@ -201,22 +201,39 @@ export default function Profile() {
             if (list.length === 0) {
               return <EmptyState icon={GithubMark} title={isMe ? 'Add your projects in Edit Profile.' : 'No projects yet.'} />
             }
+            const totalStars = list.reduce((s, r) => s + (r.stars || 0), 0)
+            const totalForks = list.reduce((s, r) => s + (r.forks || 0), 0)
             return (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {list.map((r) => (
-                  <a key={r.url || r.id} href={r.url} target="_blank" rel="noreferrer"
-                    className="card hover:border-primary/50">
-                    <div className="flex items-center gap-2">
-                      <GithubMark size={15} />
-                      <span className="truncate font-semibold text-accent">{r.name}</span>
-                    </div>
-                    {r.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{r.description}</p>}
-                    <div className="mt-2 flex items-center gap-3 text-xs text-text-muted">
-                      {r.language && <span className="flex items-center gap-1"><Circle size={8} fill="currentColor" strokeWidth={0} className="text-primary" /> {r.language}</span>}
-                      {r.stars != null && <span className="flex items-center gap-1"><Star size={12} /> {formatNum(r.stars)}</span>}
-                    </div>
-                  </a>
-                ))}
+              <div className="space-y-3">
+                {/* GitHub badge + stats + View profile */}
+                {ghHandle && (
+                  <div className="card flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <span className="flex items-center gap-1.5 font-semibold"><GithubMark size={16} /> @{ghHandle}</span>
+                    <span className="text-xs text-text-muted">{formatNum(list.length)} projects</span>
+                    <span className="flex items-center gap-1 text-xs text-text-muted"><Star size={12} /> {formatNum(totalStars)} stars</span>
+                    <span className="text-xs text-text-muted">⑂ {formatNum(totalForks)} forks</span>
+                    <a href={`https://github.com/${ghHandle}`} target="_blank" rel="noreferrer" className="btn-ghost ml-auto !py-1.5 text-xs">
+                      <GithubMark size={13} /> View GitHub Profile
+                    </a>
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {list.map((r) => (
+                    <a key={r.url || r.id} href={r.url} target="_blank" rel="noreferrer"
+                      className="card transition-colors hover:border-primary/50">
+                      <div className="flex items-center gap-2">
+                        <GithubMark size={15} />
+                        <span className="truncate font-semibold text-accent">{r.name}</span>
+                      </div>
+                      {r.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{r.description}</p>}
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted">
+                        {r.language && <span className="flex items-center gap-1"><Circle size={8} fill="currentColor" strokeWidth={0} className="text-primary" /> {r.language}</span>}
+                        {r.stars != null && <span className="flex items-center gap-1"><Star size={12} /> {formatNum(r.stars)}</span>}
+                        {r.forks != null && <span>⑂ {formatNum(r.forks)}</span>}
+                      </div>
+                    </a>
+                  ))}
+                </div>
               </div>
             )
           })()}
