@@ -4,13 +4,14 @@ import { useStore } from '../store/useStore'
 import { Avatar, EmptyState } from '../components/ui'
 import { subscribeNotifications, markAllNotificationsRead } from '../lib/db'
 import { timeAgo } from '../lib/time'
-import { Heart, UserPlus, Handshake, MessageCircle, Coins, Bell } from '../components/icons'
+import { Heart, UserPlus, Handshake, MessageCircle, Coins, Bell, AtSign } from '../components/icons'
 
 const ICON = {
   like: { Icon: Heart, color: '#FF4C4C' },
   follow: { Icon: UserPlus, color: '#6C63FF' },
   collab: { Icon: Handshake, color: '#00C896' },
   comment: { Icon: MessageCircle, color: '#00E5FF' },
+  mention: { Icon: AtSign, color: '#00E5FF' },
   credits: { Icon: Coins, color: '#FFB800' },
 }
 

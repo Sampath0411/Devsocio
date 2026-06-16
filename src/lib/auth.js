@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  sendPasswordResetEmail,
   updateProfile,
   signOut,
 } from 'firebase/auth'
@@ -106,6 +107,10 @@ export function logout() {
   return signOut(auth)
 }
 
+export async function resetPassword(email) {
+  await sendPasswordResetEmail(auth, email)
+}
+
 // Turn Firebase auth errors into friendly text for toasts.
 export function authErrorMessage(err) {
   const code = err?.code || ''
@@ -119,6 +124,7 @@ export function authErrorMessage(err) {
     'auth/popup-closed-by-user': 'Sign-in popup was closed.',
     'auth/operation-not-allowed': 'This sign-in method isn’t enabled in Firebase yet.',
     'auth/unauthorized-domain': 'This domain isn’t authorized in Firebase Auth settings.',
+    'auth/too-many-requests': 'Too many attempts — try again later.',
   }
   return map[code] || err?.message || 'Something went wrong. Please try again.'
 }

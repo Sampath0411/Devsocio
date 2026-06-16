@@ -6,12 +6,19 @@ import CreatePostModal from '../components/CreatePostModal'
 import Stories from '../components/Stories'
 import { PostSkeleton, BouncingDots, EmptyState } from '../components/ui'
 import { Plus, Rocket, PenSquare } from '../components/icons'
+import { sortFeed } from '../lib/feed'
 
 export default function Feed() {
-  const posts = useStore((s) => s.posts)
+  const rawPosts = useStore((s) => s.posts)
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  const following = useStore((s) => s.following)
+  const me = useStore((s) => s.user)
   const [loading, setLoading] = useState(true)
   const [params, setParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
+
+  // Client-side scoring: follows-first, stack match, recency, trending.
+  const posts = sortFeed(rawPosts, firebaseUser?.uid, following, me?.techStack || [])
 
   useEffect(() => {
     const id = setTimeout(() => setLoading(false), 800)
@@ -55,7 +62,7 @@ export default function Feed() {
           {posts.map((p) => <PostCard key={p.postId} post={p} />)}
           <BouncingDots />
           <p className="flex items-center justify-center gap-1.5 pb-4 text-center text-sm text-text-muted">
-            You’re all caught up! <Rocket size={14} />
+            You're all caught up! <Rocket size={14} />
           </p>
         </div>
       )}

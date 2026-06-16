@@ -20,4 +20,8 @@ export default defineConfig({
       },
     },
   },
+  // bad-words is CommonJS; pre-bundle it so Vite's ESM transform doesn't fail.
+  optimizeDeps: {
+    include: ['bad-words'],
+  },
 })

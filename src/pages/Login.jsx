@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
-import { emailLogin, googleLogin, githubLogin, authErrorMessage } from '../lib/auth'
+import { emailLogin, googleLogin, githubLogin, authErrorMessage, resetPassword } from '../lib/auth'
 import { GithubMark, GoogleMark, Code2, Rocket } from '../components/icons'
 
 export default function Login() {
@@ -9,6 +9,19 @@ export default function Login() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [busy, setBusy] = useState(false)
+  const [showReset, setShowReset] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+
+  const sendReset = async (e) => {
+    e?.preventDefault()
+    try {
+      await resetPassword(resetEmail || form.email)
+      toast('Reset link sent — check your email', { tone: 'success' })
+      setShowReset(false)
+    } catch (err) {
+      toast(authErrorMessage(err), { tone: 'warning' })
+    }
+  }
 
   const run = async (fn) => {
     setBusy(true)
@@ -47,12 +60,25 @@ export default function Login() {
           <label className="flex items-center gap-2">
             <input type="checkbox" className="accent-primary" defaultChecked /> Remember me
           </label>
-          <button type="button" className="hover:text-accent">Forgot password?</button>
+          <button type="button" className="hover:text-accent" onClick={() => { setShowReset((v) => !v); setResetEmail(form.email) }}>
+            Forgot password?
+          </button>
         </div>
         <button type="submit" disabled={busy} className="btn-primary w-full justify-center">
           {busy ? 'Logging in…' : 'Log in'}
         </button>
       </form>
+
+      {showReset && (
+        <div className="space-y-2 rounded-card border border-border bg-bg p-3">
+          <p className="text-xs text-text-muted">Enter your email and we'll send a reset link.</p>
+          <div className="flex gap-2">
+            <input className="input text-sm" type="email" placeholder="you@dev.com"
+              value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+            <button type="button" onClick={sendReset} disabled={!resetEmail.trim()} className="btn-primary shrink-0 text-sm">Send link</button>
+          </div>
+        </div>
+      )}
 
       <p className="text-center text-sm text-text-muted">
         New here? <Link to="/signup" className="font-semibold text-primary hover:underline">Join DevSocio</Link>

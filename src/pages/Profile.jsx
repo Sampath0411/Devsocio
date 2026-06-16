@@ -13,7 +13,7 @@ import {
   Settings, MessageCircle, Circle, Star, GithubMark, Crown,
 } from '../components/icons'
 
-const TABS = ['Posts', 'Projects', 'Ideas', 'Saved']
+// TABS is computed per-profile — Saved only shows on your own profile.
 
 export default function Profile() {
   const { username } = useParams()
@@ -53,6 +53,18 @@ export default function Profile() {
   const [reposLoading, setReposLoading] = useState(false)
   const ghHandle = profile?.links?.github?.handle
 
+  // Computed tab list: Saved only visible on own profile.
+  const isMe = me && profile?.username === me.username
+  const TABS = isMe
+    ? ['Posts', 'Projects', 'Ideas', 'Saved']
+    : ['Posts', 'Projects', 'Ideas']
+
+  // If the user navigates from their own profile (where Saved tab is active) to
+  // someone else's profile, reset to Posts so the Saved tab doesn't linger.
+  useEffect(() => {
+    if (!isMe && tab === 'Saved') setTab('Posts')
+  }, [isMe, tab])
+
   // Pull the developer's real GitHub repos when the Projects tab opens.
   useEffect(() => {
     setRepos([]); setRepoErr(false)
@@ -69,7 +81,6 @@ export default function Profile() {
     return <div className="py-10 text-center text-text-muted">Profile not found.</div>
   }
 
-  const isMe = me && profile.username === me.username
   const isFollowing = following[profile.uid]
   const userPosts = posts.filter((p) => p.author?.username === profile.username)
   const savedPosts = posts.filter((p) => saved[p.postId])
@@ -177,7 +188,7 @@ export default function Profile() {
         </div>
 
         <div className="mt-4 space-y-4">
-          {tab === 'Saved' && (savedPosts.length ? savedPosts.map((p) => <PostCard key={p.postId} post={p} />)
+          {tab === 'Saved' && isMe && (savedPosts.length ? savedPosts.map((p) => <PostCard key={p.postId} post={p} />)
             : <EmptyState icon={Bookmark} title="Nothing saved yet — save posts to find them here" />)}
 
           {tab === 'Posts' && (userPosts.length ? userPosts.map((p) => <PostCard key={p.postId} post={p} />)

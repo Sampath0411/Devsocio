@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -12,11 +12,13 @@ import {
   subscribeMySaves,
   subscribeMyFollowing,
   touchPresence,
+  markOnboardingDone,
 } from './lib/db'
 import { useStore } from './store/useStore'
 import { ToastProvider } from './components/Toast'
 import PageLoader from './components/PageLoader'
 import Layout from './components/Layout'
+import OnboardingTour from './components/OnboardingTour'
 
 import Landing from './pages/Landing'
 import Login from './pages/Login'
@@ -56,10 +58,31 @@ export default function App() {
     setPosts, setUsers, setLikes, setSaved, setFollowing,
   } = useStore()
 
+  const [showTour, setShowTour] = useState(false)
+
   // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {
     initAnalytics()
-    const unsubPosts = subscribePosts(setPosts)
+    const unsubPosts = subscribePosts((posts) => {
+      setPosts(posts)
+      // Feature 5: Check if any post owned by the current user just crossed
+      // 10 or 50 likes — if so, silently claim milestone credits on their behalf.
+      const { firebaseUser: u } = useStore.getState()
+      if (!u) return
+      const mine = posts.filter((p) => p.authorUid === u.uid)
+      for (const p of mine) {
+        if (p.likes >= 10 && !p.milestone10Paid) {
+          import('./lib/credits').then(({ claimPostMilestone }) =>
+            claimPostMilestone('post_10_likes', p.postId).catch(() => {})
+          )
+        }
+        if (p.likes >= 50 && !p.milestone50Paid) {
+          import('./lib/credits').then(({ claimPostMilestone }) =>
+            claimPostMilestone('post_50_likes', p.postId).catch(() => {})
+          )
+        }
+      }
+    })
     const unsubUsers = subscribeUsers(setUsers)
     let unsubProfile = null
     let unsubGraph = []
@@ -89,6 +112,8 @@ export default function App() {
           const initial = await ensureProfile(u) // create doc on first sign-in
           setProfile(initial)
           unsubProfile = subscribeProfile(u.uid, setProfile)
+          // Feature 12: show onboarding tour for new users only
+          if (!initial.onboardingDone) setShowTour(true)
         } catch {
           // Firestore unreadable (rules) — fall back to a minimal profile.
           setProfile({
@@ -104,6 +129,7 @@ export default function App() {
         }
       } else {
         clearAuth()
+        setShowTour(false)
       }
       setAuthReady(true)
     })
@@ -124,6 +150,13 @@ export default function App() {
       <AnimatePresence>
         {!authReady && <PageLoader key="loader" onDone={() => {}} />}
       </AnimatePresence>
+
+      {showTour && (
+        <OnboardingTour onDone={() => {
+          setShowTour(false)
+          if (auth.currentUser) markOnboardingDone(auth.currentUser.uid)
+        }} />
+      )}
 
       {authReady && (
         <Routes>

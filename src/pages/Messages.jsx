@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { Avatar, EmptyState, VerifiedTick } from '../components/ui'
 import { subscribeConversations, subscribeThread, sendMessage, convoId, acceptCollab, setTyping, isOnline } from '../lib/db'
 import { timeAgo } from '../lib/time'
+import { clean } from '../lib/sanitize'
 import { Handshake, Send, Code2, Circle, Mail, ChevronLeft } from '../components/icons'
 
 export default function Messages() {
@@ -202,7 +203,7 @@ export default function Messages() {
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
                         mine ? 'rounded-br-sm bg-primary text-white' : 'rounded-bl-sm border border-border bg-bg'}`}>
-                        {m.text}
+                        {clean(m.text)}
                         {m.createdAt && (
                           <span className={`mt-0.5 block text-[10px] ${mine ? 'text-white/60' : 'text-text-muted'}`}>{timeAgo(m.createdAt)}</span>
                         )}

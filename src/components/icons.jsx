@@ -59,6 +59,8 @@ export {
   Copy,
   Trash2,
   FileText,
+  AtSign,
+  ArrowRight,
 } from 'lucide-react'
 
 // ---- Brand marks (lucide dropped brand icons) ----

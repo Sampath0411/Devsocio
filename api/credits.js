@@ -22,6 +22,18 @@ function getApp() {
 const inc = (n) => admin.firestore.FieldValue.increment(n)
 const now = () => admin.firestore.FieldValue.serverTimestamp()
 
+// Best-effort: write a credit transaction log entry.
+async function logTx(db, uid, amount, description) {
+  try {
+    await db.collection('users').doc(uid).collection('credits_log').add({
+      amount,
+      type: amount > 0 ? 'earn' : 'spend',
+      description,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+  } catch { /* non-fatal */ }
+}
+
 async function uidByUsername(db, username) {
   if (!username) return null
   const snap = await db.collection('users').where('username', '==', username).limit(1).get()
@@ -46,15 +58,38 @@ export default async function handler(req, res) {
     const { action } = req.body || {}
     const ref = db.collection('users').doc(uid)
 
-    // --- Daily login (+5, once per ~day) ---
+    // --- Daily login (+5, once per ~day) with streak tracking ---
     if (action === 'daily_login') {
       const out = await db.runTransaction(async (tx) => {
         const d = (await tx.get(ref)).data() || {}
         const last = d.lastDailyAt?.toMillis ? d.lastDailyAt.toMillis() : 0
-        if (Date.now() - last < 20 * 60 * 60 * 1000) return { credits: d.credits || 0, awarded: 0 }
-        tx.update(ref, { credits: inc(5), lastDailyAt: now() })
-        return { credits: (d.credits || 0) + 5, awarded: 5 }
+        const nowMs = Date.now()
+        if (nowMs - last < 20 * 60 * 60 * 1000) return { credits: d.credits || 0, awarded: 0, streak: d.loginStreak || 0 }
+
+        // Calculate new streak
+        const gapMs = nowMs - last
+        const twoDaysMs = 2 * 24 * 60 * 60 * 1000
+        const prevStreak = d.loginStreak || 0
+        const newStreak = gapMs <= twoDaysMs && last > 0 ? prevStreak + 1 : 1
+
+        // Base award + 7-day streak bonus
+        let awarded = 5
+        let streakBonus = 0
+        if (newStreak % 7 === 0) {
+          streakBonus = 100
+          awarded += 100
+        }
+
+        tx.update(ref, {
+          credits: inc(awarded),
+          lastDailyAt: now(),
+          loginStreak: newStreak,
+          longestStreak: Math.max(newStreak, d.longestStreak || 0),
+        })
+
+        return { credits: (d.credits || 0) + awarded, awarded, streak: newStreak, streakBonus }
       })
+      await logTx(db, uid, out.awarded || 0, out.streakBonus ? `Daily login +5 + 7-day streak bonus +100` : 'Daily login')
       res.status(200).json(out)
       return
     }
@@ -67,6 +102,7 @@ export default async function handler(req, res) {
         tx.update(ref, { credits: inc(50), profileBonusPaid: true })
         return { credits: (d.credits || 0) + 50, awarded: 50 }
       })
+      await logTx(db, uid, out.awarded || 0, 'Profile completion bonus')
       res.status(200).json(out)
       return
     }
@@ -86,6 +122,8 @@ export default async function handler(req, res) {
         if (refUid && refUid !== uid) tx.update(db.collection('users').doc(refUid), { credits: inc(150) })
         return { credits: (d.credits || 0) + 150, awarded: 150 }
       })
+      await logTx(db, uid, out.awarded || 0, 'Referral signup bonus')
+      if (refUid && refUid !== uid && out.awarded) await logTx(db, refUid, 150, 'Referral signup bonus (referrer)')
       res.status(200).json(out)
       return
     }
@@ -106,8 +144,44 @@ export default async function handler(req, res) {
         tx.update(ref, update)
         return { credits: (d.credits || 0) + 30, awarded: 30, referrerBonus }
       })
+      await logTx(db, uid, 30, 'Post published')
+      if (out.referrerBonus && refUid) await logTx(db, refUid, 50, 'Referral first post bonus')
       res.status(200).json(out)
       return
+    }
+
+    // --- Post milestone: 10 likes → +20 credits (once per post) ---
+    if (action === 'post_10_likes') {
+      const { postId } = req.body || {}
+      if (!postId) { res.status(400).json({ error: 'postId required' }); return }
+      const postRef = db.collection('posts').doc(postId)
+      const out = await db.runTransaction(async (tx) => {
+        const p = (await tx.get(postRef)).data() || {}
+        if (p.authorUid !== uid) return { credits: 0, awarded: 0 }
+        if (p.milestone10Paid) return { credits: 0, awarded: 0 }
+        tx.update(postRef, { milestone10Paid: true })
+        tx.update(ref, { credits: inc(20) })
+        return { awarded: 20 }
+      })
+      await logTx(db, uid, out.awarded || 0, 'Post hit 10 likes')
+      res.status(200).json(out); return
+    }
+
+    // --- Post milestone: 50 likes → +50 credits (once per post) ---
+    if (action === 'post_50_likes') {
+      const { postId } = req.body || {}
+      if (!postId) { res.status(400).json({ error: 'postId required' }); return }
+      const postRef = db.collection('posts').doc(postId)
+      const out = await db.runTransaction(async (tx) => {
+        const p = (await tx.get(postRef)).data() || {}
+        if (p.authorUid !== uid) return { credits: 0, awarded: 0 }
+        if (p.milestone50Paid) return { credits: 0, awarded: 0 }
+        tx.update(postRef, { milestone50Paid: true })
+        tx.update(ref, { credits: inc(50) })
+        return { awarded: 50 }
+      })
+      await logTx(db, uid, out.awarded || 0, 'Post hit 50 likes')
+      res.status(200).json(out); return
     }
 
     res.status(400).json({ error: 'Unknown credit action' })

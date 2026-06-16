@@ -19,3 +19,17 @@ export async function earnCredits(action, extra = {}) {
   }
   return res.json() // { credits, awarded }
 }
+
+// Claim a like milestone reward (post_10_likes | post_50_likes) for a specific post.
+// Called client-side when the post owner's post reaches a like threshold.
+export async function claimPostMilestone(action, postId) {
+  const user = auth.currentUser
+  if (!user) return
+  const token = await user.getIdToken()
+  const res = await fetch('/api/credits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action, postId }),
+  })
+  return res.ok ? res.json() : null
+}

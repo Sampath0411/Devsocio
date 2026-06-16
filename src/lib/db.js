@@ -268,6 +268,12 @@ export function subscribeComments(postId, onData) {
   }
 }
 
+// Extract @usernames from comment text → array of lowercase handles (no @).
+export function parseMentions(text = '') {
+  const found = text.match(/@([a-zA-Z0-9_]+)/g) || []
+  return [...new Set(found.map((m) => m.slice(1).toLowerCase()))]
+}
+
 export async function addComment(postId, comment) {
   const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
     likesCount: 0,
@@ -559,6 +565,41 @@ export async function reactToStory(storyId, emoji, uid) {
 export async function markStoryViewed(storyId, uid) {
   if (!storyId || !uid) return
   await updateDoc(doc(db, 'stories', storyId), { viewers: arrayUnion(uid) }).catch(() => {})
+}
+
+// ----------------------------------------------------------------------------
+// Credit transaction log — subcollection on each user doc.
+// ----------------------------------------------------------------------------
+
+// Write a credit transaction log entry (best-effort — never throw).
+export async function logCreditTx(uid, { amount, type, description }) {
+  try {
+    await addDoc(collection(db, 'users', uid, 'credits_log'), {
+      amount,        // positive = earned, negative = spent
+      type,          // 'earn' | 'spend'
+      description,   // human-readable e.g. "Post published +30"
+      createdAt: serverTimestamp(),
+    })
+  } catch { /* non-fatal */ }
+}
+
+// Fetch credit log for the current user (last 50 entries).
+export function subscribeCreditLog(uid, onData) {
+  try {
+    return onSnapshot(
+      query(collection(db, 'users', uid, 'credits_log'), orderBy('createdAt', 'desc'), limit(50)),
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => onData([]),
+    )
+  } catch {
+    onData([])
+    return () => {}
+  }
+}
+
+// Mark onboarding as complete for new users.
+export async function markOnboardingDone(uid) {
+  await updateDoc(doc(db, 'users', uid), { onboardingDone: true }).catch(() => {})
 }
 
 export { getDoc, doc }

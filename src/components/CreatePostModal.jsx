@@ -10,6 +10,7 @@ import { AILoader, StackPill } from './ui'
 import { POST_TYPES } from '../data/mock'
 import { TYPE_META } from './postTypes'
 import { X, Sparkles, Coins, ImageIcon } from './icons'
+import { checkContent } from '../lib/filter'
 
 // Local fallback line per post type, used only if the AI call fails (PRD §4.1).
 const FALLBACK_AI = {
@@ -59,6 +60,12 @@ export default function CreatePostModal({ open, onClose }) {
 
   const publish = async () => {
     if (!content.trim()) return
+    // Feature 9: block profane content before publishing
+    const check = checkContent(content)
+    if (!check.clean) {
+      toast('Post blocked — contains inappropriate language', { tone: 'warning' })
+      return
+    }
     const post = {
       authorUid: user?.uid,
       author: {

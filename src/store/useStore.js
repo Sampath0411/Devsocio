@@ -6,6 +6,7 @@ import {
   setPostSave,
   setFollow,
   pushNotification,
+  logCreditTx,
 } from '../lib/db'
 
 // Global state. Auth/profile/credits AND the social graph (likes/saves/follows)
@@ -31,6 +32,7 @@ export const useStore = create((set, get) => ({
     if (u) {
       try {
         await changeCredits(u.uid, amount)
+        if (amount > 0) logCreditTx(u.uid, { amount, type: 'earn', description: `Credits earned (+${amount})` })
       } catch {
         /* offline / rules — keep optimistic value */
       }
@@ -44,6 +46,7 @@ export const useStore = create((set, get) => ({
     if (u) {
       try {
         await changeCredits(u.uid, -amount)
+        logCreditTx(u.uid, { amount: -amount, type: 'spend', description: `Credits spent (-${amount})` })
       } catch {
         /* ignore */
       }

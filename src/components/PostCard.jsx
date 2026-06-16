@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
 import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock, VerifiedTick } from './ui'
 import { reportContent, repost } from '../lib/db'
+import { clean, cleanCode } from '../lib/sanitize'
 import { timeAgo } from '../lib/time'
 import { TYPE_META } from './postTypes'
 import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag, X } from './icons'
@@ -128,12 +129,12 @@ export default function PostCard({ post }) {
 
       {/* body */}
       <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-text-primary">
-        {post.content}
+        {clean(post.content)}
       </p>
 
       {post.code && (
         <pre className="overflow-x-auto rounded-card border border-border bg-bg p-4 font-mono text-[13px] leading-relaxed text-accent">
-          <code>{post.code}</code>
+          <code>{cleanCode(post.code)}</code>
         </pre>
       )}
 
@@ -151,7 +152,7 @@ export default function PostCard({ post }) {
             <Repeat2 size={13} /> {post.repostOf.author?.displayName || 'a dev'}
             <span>@{post.repostOf.author?.username}</span>
           </div>
-          <p className="line-clamp-3 text-sm text-text-primary">{post.repostOf.content}</p>
+          <p className="line-clamp-3 text-sm text-text-primary">{clean(post.repostOf?.content)}</p>
           {post.repostOf.imageUrl && (
             <img src={post.repostOf.imageUrl} alt="" className="mt-2 max-h-40 w-full rounded-input object-cover" />
           )}

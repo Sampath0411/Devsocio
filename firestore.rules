@@ -39,6 +39,13 @@ service cloud.firestore {
         allow read, update, delete: if isUser(uid);
         allow create: if signedIn();
       }
+      // Credit transaction log — owner can read; created by owner (client) or
+      // Admin SDK (server). Immutable: no updates or deletes permitted.
+      match /credits_log/{logId} {
+        allow read: if isUser(uid);
+        allow create: if isUser(uid) || isAdmin();
+        allow update, delete: if false;
+      }
     }
 
     // ---- Posts, their likes and comments ----
