@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
 import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge } from '../components/ui'
-import { fetchProfileByUsername, requestCollab, isOnline, subscribeIdeas, investInIdea, fetchFollowingUids, fetchFollowersUids } from '../lib/db'
+import { fetchProfileByUsername, requestCollab, isOnline, subscribeIdeas, investInIdea, fetchFollowingUids, fetchFollowersUids, updateProfileDoc } from '../lib/db'
 import { fetchRepos } from '../lib/github'
 import { achievementsFor } from '../lib/achievements'
 import { IdeaCard } from './Ideas'
@@ -96,6 +96,49 @@ export default function Profile() {
     }
     return () => { alive = false }
   }, [username, users, me])
+
+  // Self-healing: reconcile follower/following counts with the database truth.
+  useEffect(() => {
+    if (!profile?.uid) return
+    let alive = true
+
+    const heal = async () => {
+      try {
+        const [followingUids, followersUids] = await Promise.all([
+          fetchFollowingUids(profile.uid),
+          fetchFollowersUids(profile.uid)
+        ])
+
+        if (!alive) return
+
+        const actualFollowing = followingUids.length
+        const actualFollowers = followersUids.length
+
+        const patch = {}
+        if (profile.uid === me?.uid && profile.followingCount !== actualFollowing) {
+          patch.followingCount = actualFollowing
+        }
+        if (profile.followersCount !== actualFollowers) {
+          patch.followersCount = actualFollowers
+        }
+
+        if (Object.keys(patch).length > 0) {
+          const { saveProfileFields } = useStore.getState()
+          if (profile.uid === me?.uid) {
+            await saveProfileFields(patch)
+          } else {
+            await updateProfileDoc(profile.uid, patch)
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    heal()
+
+    return () => { alive = false }
+  }, [profile?.uid, me?.uid])
 
   const [tab, setTab] = useState('Posts')
   const [repos, setRepos] = useState([])
