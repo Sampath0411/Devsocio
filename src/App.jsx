@@ -13,6 +13,7 @@ import {
   subscribeMyFollowing,
   touchPresence,
   markOnboardingDone,
+  updateProfileDoc,
 } from './lib/db'
 import { useStore } from './store/useStore'
 import { ToastProvider } from './components/Toast'
@@ -113,7 +114,14 @@ export default function App() {
         unsubGraph = [
           subscribeMyLikes(u.uid, setLikes),
           subscribeMySaves(u.uid, setSaved),
-          subscribeMyFollowing(u.uid, setFollowing),
+          subscribeMyFollowing(u.uid, (followingMap) => {
+            setFollowing(followingMap)
+            const actualCount = Object.keys(followingMap).length
+            const currentProfile = useStore.getState().user
+            if (currentProfile && currentProfile.followingCount !== actualCount) {
+              updateProfileDoc(u.uid, { followingCount: actualCount }).catch(() => {})
+            }
+          }),
         ]
         try {
           const initial = await ensureProfile(u) // create doc on first sign-in

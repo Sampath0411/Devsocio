@@ -197,9 +197,9 @@ export default function Profile() {
           })()}
 
           <div className="mt-4 flex gap-6 text-sm">
-            <Stat label="Posts" value={profile.postsCount ?? userPosts.length} />
-            <Stat label="Followers" value={profile.followersCount ?? 0} />
-            <Stat label="Following" value={profile.followingCount ?? 0} />
+            <Stat label="Posts" value={Math.max(0, profile.postsCount ?? userPosts.length)} />
+            <Stat label="Followers" value={Math.max(0, profile.followersCount ?? 0)} />
+            <Stat label="Following" value={isMe ? Object.keys(following).length : Math.max(0, profile.followingCount ?? 0)} />
             {isMe && (
               <span className="flex items-center gap-1.5">
                 <Coins size={16} className="text-warning" />
