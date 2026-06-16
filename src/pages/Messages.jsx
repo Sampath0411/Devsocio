@@ -111,7 +111,7 @@ export default function Messages() {
   const noConvos = convos.length === 0 && !active
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] overflow-hidden rounded-card border border-border bg-surface -mx-4 -mb-6 md:h-[calc(100vh-4rem)]">
+    <div className="fixed inset-x-0 top-16 bottom-14 flex overflow-hidden border-t border-border bg-surface md:bottom-0">
       {/* conversation list — hidden on mobile while a chat is open */}
       <div className={`w-full shrink-0 overflow-y-auto border-r border-border md:w-72 md:max-w-xs ${active ? 'hidden md:block' : 'block'}`}>
         <h1 className="border-b border-border px-4 py-4 font-display text-lg font-bold">Messages</h1>
