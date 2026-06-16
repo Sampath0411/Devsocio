@@ -63,6 +63,7 @@ export default function App() {
   // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {
     initAnalytics()
+    const claimedMilestones = new Set()
     const unsubPosts = subscribePosts((posts) => {
       setPosts(posts)
       // Feature 5: Check if any post owned by the current user just crossed
@@ -71,14 +72,20 @@ export default function App() {
       if (!u) return
       const mine = posts.filter((p) => p.authorUid === u.uid)
       for (const p of mine) {
-        if (p.likes >= 10 && !p.milestone10Paid) {
+        if (p.likes >= 10 && !p.milestone10Paid && !claimedMilestones.has(p.postId + '_10')) {
+          claimedMilestones.add(p.postId + '_10')
           import('./lib/credits').then(({ claimPostMilestone }) =>
-            claimPostMilestone('post_10_likes', p.postId).catch(() => {})
+            claimPostMilestone('post_10_likes', p.postId).catch(() => {
+              claimedMilestones.delete(p.postId + '_10')
+            })
           )
         }
-        if (p.likes >= 50 && !p.milestone50Paid) {
+        if (p.likes >= 50 && !p.milestone50Paid && !claimedMilestones.has(p.postId + '_50')) {
+          claimedMilestones.add(p.postId + '_50')
           import('./lib/credits').then(({ claimPostMilestone }) =>
-            claimPostMilestone('post_50_likes', p.postId).catch(() => {})
+            claimPostMilestone('post_50_likes', p.postId).catch(() => {
+              claimedMilestones.delete(p.postId + '_50')
+            })
           )
         }
       }

@@ -21,7 +21,7 @@ function ScoreRing({ score }) {
   )
 }
 
-function IdeaCard({ idea, onInvest, onCollab }) {
+export function IdeaCard({ idea, onInvest, onCollab }) {
   const strengths = idea.strengths || []
   const weaknesses = idea.weaknesses || []
   const competitors = idea.competitors || []

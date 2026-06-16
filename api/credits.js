@@ -158,6 +158,7 @@ export default async function handler(req, res) {
       const out = await db.runTransaction(async (tx) => {
         const p = (await tx.get(postRef)).data() || {}
         if (p.authorUid !== uid) return { credits: 0, awarded: 0 }
+        if ((p.likes || 0) < 10) return { credits: 0, awarded: 0 }
         if (p.milestone10Paid) return { credits: 0, awarded: 0 }
         tx.update(postRef, { milestone10Paid: true })
         tx.update(ref, { credits: inc(20) })
@@ -175,6 +176,7 @@ export default async function handler(req, res) {
       const out = await db.runTransaction(async (tx) => {
         const p = (await tx.get(postRef)).data() || {}
         if (p.authorUid !== uid) return { credits: 0, awarded: 0 }
+        if ((p.likes || 0) < 50) return { credits: 0, awarded: 0 }
         if (p.milestone50Paid) return { credits: 0, awarded: 0 }
         tx.update(postRef, { milestone50Paid: true })
         tx.update(ref, { credits: inc(50) })

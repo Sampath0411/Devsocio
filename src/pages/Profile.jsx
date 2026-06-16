@@ -4,9 +4,10 @@ import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
 import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge } from '../components/ui'
-import { fetchProfileByUsername, requestCollab, isOnline } from '../lib/db'
+import { fetchProfileByUsername, requestCollab, isOnline, subscribeIdeas, investInIdea } from '../lib/db'
 import { fetchRepos } from '../lib/github'
 import { achievementsFor } from '../lib/achievements'
+import { IdeaCard } from './Ideas'
 import { formatNum } from '../lib/time'
 import {
   Handshake, Rocket, Coins, Bookmark, PenSquare,
@@ -19,13 +20,43 @@ export default function Profile() {
   const { username } = useParams()
   const toast = useToast()
   const navigate = useNavigate()
-  const { user: me, posts, users, following, toggleFollow, saved } = useStore()
+  const { user: me, posts, users, following, toggleFollow, saved, spendCredits } = useStore()
+
+  const [ideas, setIdeas] = useState([])
+
+  useEffect(() => {
+    return subscribeIdeas(setIdeas)
+  }, [])
 
   const sendCollab = async (p) => {
     try {
       await requestCollab(me, p)
       toast(`Collab request sent to ${p.displayName}`, { tone: 'success', icon: Handshake })
       navigate(`/messages/${p.uid}`)
+    } catch {
+      toast('Could not send collab request', { tone: 'warning' })
+    }
+  }
+
+  const invest = async (idea) => {
+    if (!(await spendCredits(50))) {
+      toast('Not enough credits to invest', { tone: 'warning' })
+      return
+    }
+    try {
+      await investInIdea(idea.ideaId, 50)
+    } catch {
+      /* optimistic */
+    }
+    toast(`Invested 50 credits in "${idea.title}"`, { icon: Coins })
+  }
+
+  const collabIdea = async (idea) => {
+    if (!idea.author?.uid || idea.author.uid === me?.uid) return
+    try {
+      await requestCollab(me, idea.author, idea.title)
+      toast(`Collab request sent for "${idea.title}"`, { tone: 'success', icon: Handshake })
+      navigate(`/messages/${idea.author.uid}`)
     } catch {
       toast('Could not send collab request', { tone: 'warning' })
     }
@@ -84,6 +115,7 @@ export default function Profile() {
   const isFollowing = following[profile.uid]
   const userPosts = posts.filter((p) => p.author?.username === profile.username)
   const savedPosts = posts.filter((p) => saved[p.postId])
+  const userIdeas = ideas.filter((i) => i.authorUid === profile.uid || i.author?.username === profile.username)
   const links = profile.links || {}
 
   return (
@@ -249,9 +281,15 @@ export default function Profile() {
             )
           })()}
 
-          {tab === 'Ideas' && (
+          {tab === 'Ideas' && (userIdeas.length ? (
+            <div className="space-y-4">
+              {userIdeas.map((idea) => (
+                <IdeaCard key={idea.ideaId} idea={idea} onInvest={() => invest(idea)} onCollab={() => collabIdea(idea)} />
+              ))}
+            </div>
+          ) : (
             <EmptyState icon={PenSquare} title="No ideas yet" />
-          )}
+          ))}
         </div>
       </div>
     </div>
