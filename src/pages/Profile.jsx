@@ -4,14 +4,14 @@ import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
 import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge } from '../components/ui'
-import { fetchProfileByUsername, requestCollab, isOnline, subscribeIdeas, investInIdea } from '../lib/db'
+import { fetchProfileByUsername, requestCollab, isOnline, subscribeIdeas, investInIdea, fetchFollowingUids, fetchFollowersUids } from '../lib/db'
 import { fetchRepos } from '../lib/github'
 import { achievementsFor } from '../lib/achievements'
 import { IdeaCard } from './Ideas'
 import { formatNum } from '../lib/time'
 import {
   Handshake, Rocket, Coins, Bookmark, PenSquare,
-  Settings, MessageCircle, Circle, Star, GithubMark, Crown,
+  Settings, MessageCircle, Circle, Star, GithubMark, Crown, X,
 } from '../components/icons'
 
 // TABS is computed per-profile — Saved only shows on your own profile.
@@ -23,10 +23,29 @@ export default function Profile() {
   const { user: me, posts, users, following, toggleFollow, saved, spendCredits } = useStore()
 
   const [ideas, setIdeas] = useState([])
+  const [followsModal, setFollowsModal] = useState({ open: false, type: '', list: [], loading: false })
 
   useEffect(() => {
     return subscribeIdeas(setIdeas)
   }, [])
+
+  const openFollowsModal = async (type) => {
+    setFollowsModal({ open: true, type, list: [], loading: true })
+    try {
+      const uids = type === 'Following'
+        ? await fetchFollowingUids(profile.uid)
+        : await fetchFollowersUids(profile.uid)
+
+      const list = uids.map((uid) => {
+        const found = users.find((u) => u.uid === uid)
+        return found || { uid, username: uid, displayName: 'Developer', avatar: undefined }
+      })
+      setFollowsModal({ open: true, type, list, loading: false })
+    } catch {
+      setFollowsModal({ open: true, type, list: [], loading: false })
+      toast(`Could not load ${type.toLowerCase()}`, { tone: 'warning' })
+    }
+  }
 
   const sendCollab = async (p) => {
     try {
@@ -198,8 +217,8 @@ export default function Profile() {
 
           <div className="mt-4 flex gap-6 text-sm">
             <Stat label="Posts" value={Math.max(0, profile.postsCount ?? userPosts.length)} />
-            <Stat label="Followers" value={Math.max(0, profile.followersCount ?? 0)} />
-            <Stat label="Following" value={isMe ? Object.keys(following).length : Math.max(0, profile.followingCount ?? 0)} />
+            <Stat label="Followers" value={Math.max(0, profile.followersCount ?? 0)} onClick={() => openFollowsModal('Followers')} />
+            <Stat label="Following" value={isMe ? Object.keys(following).length : Math.max(0, profile.followingCount ?? 0)} onClick={() => openFollowsModal('Following')} />
             {isMe && (
               <span className="flex items-center gap-1.5">
                 <Coins size={16} className="text-warning" />
@@ -292,14 +311,83 @@ export default function Profile() {
           ))}
         </div>
       </div>
+      <FollowsModal
+        open={followsModal.open}
+        onClose={() => setFollowsModal({ ...followsModal, open: false })}
+        type={followsModal.type}
+        list={followsModal.list}
+        loading={followsModal.loading}
+        following={following}
+        toggleFollow={toggleFollow}
+        me={me}
+        toast={toast}
+      />
     </div>
   )
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, onClick }) {
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="text-left hover:text-primary transition-colors focus:outline-none">
+        <span className="text-lg font-bold">{formatNum(value)}</span> <span className="text-xs text-text-muted">{label}</span>
+      </button>
+    )
+  }
   return (
     <div>
       <span className="text-lg font-bold">{formatNum(value)}</span> <span className="text-xs text-text-muted">{label}</span>
+    </div>
+  )
+}
+
+function FollowsModal({ open, onClose, type, list, loading, following, toggleFollow, me, toast }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="card relative z-10 w-full max-w-md flex flex-col max-h-[70vh] p-0 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="font-display text-base font-bold">{type}</h3>
+          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {loading && (
+            <p className="py-6 text-center text-sm text-text-muted">Loading…</p>
+          )}
+          {!loading && list.length === 0 && (
+            <p className="py-6 text-center text-sm text-text-muted">No users found.</p>
+          )}
+          {!loading && list.map((u) => {
+            const isFollowing = following[u.uid]
+            const isMe = me?.uid === u.uid
+            return (
+              <div key={u.uid} className="flex items-center gap-3 rounded-input hover:bg-bg px-3 py-2">
+                <Link to={`/profile/${u.username}`} onClick={onClose} className="shrink-0">
+                  <Avatar src={u.avatar} alt={u.displayName} size={36} />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link to={`/profile/${u.username}`} onClick={onClose} className="block truncate text-sm font-semibold hover:underline">
+                    {u.displayName}
+                  </Link>
+                  <span className="block truncate text-xs text-text-muted">@{u.username}</span>
+                </div>
+                {!isMe && (
+                  <button onClick={() => {
+                    toggleFollow(u.uid)
+                    if (!isFollowing) toast(`Following ${u.displayName}`, { tone: 'success' })
+                  }}
+                    className={`pill border text-xs ${isFollowing ? 'border-success/50 text-success' : 'border-primary/50 text-primary hover:bg-primary/10'}`}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

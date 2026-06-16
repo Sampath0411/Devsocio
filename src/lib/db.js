@@ -252,6 +252,17 @@ export function subscribeMyFollowing(uid, onData) {
   }
 }
 
+export async function fetchFollowingUids(uid) {
+  const snap = await getDocs(collection(db, 'users', uid, 'following'))
+  return snap.docs.map((d) => d.id)
+}
+
+export async function fetchFollowersUids(uid) {
+  const q = query(collectionGroup(db, 'following'), where('uid', '==', uid))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => d.ref.parent.parent?.id).filter(Boolean)
+}
+
 // ----------------------------------------------------------------------------
 // Comments — subcollection under each post, with a counter on the post.
 // ----------------------------------------------------------------------------

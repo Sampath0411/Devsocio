@@ -23,6 +23,9 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isUser(uid) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moderator'])
+      ) || (
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
       );
       allow delete: if false;
 
@@ -89,6 +92,11 @@ service cloud.firestore {
 
     // collectionGroup query over all "likes" (which posts a user liked).
     match /{path=**}/likes/{uid} {
+      allow read: if signedIn();
+    }
+
+    // collectionGroup query over all "following" (to find followers of a user).
+    match /{path=**}/following/{targetUid} {
       allow read: if signedIn();
     }
 
