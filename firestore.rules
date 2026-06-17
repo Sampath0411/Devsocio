@@ -13,6 +13,13 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn() && request.auth.token.email == 'sampathlox@gmail.com';
     }
+    // A user the admin has banned cannot create new content (one read per write).
+    function isBanned() {
+      return signedIn()
+        && !isAdmin()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned == true;
+    }
 
     // ---- Users & their private subcollections ----
     match /users/{uid} {
@@ -57,7 +64,7 @@ service cloud.firestore {
     // ---- Posts, their likes and comments ----
     match /posts/{postId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid && !isBanned();
       // Author can edit/delete; any signed-in user may bump counters
       // (likes / commentsCount) when interacting with the post. Admin may
       // delete any post for moderation.
@@ -74,7 +81,7 @@ service cloud.firestore {
       }
       match /comments/{commentId} {
         allow read: if signedIn();
-        allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
+        allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid && !isBanned();
         // Any signed-in user may bump likesCount; author/admin can delete.
         allow update: if signedIn() && (
           resource.data.authorUid == request.auth.uid ||
@@ -103,7 +110,7 @@ service cloud.firestore {
     // ---- Ideas board ----
     match /ideas/{ideaId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid && !isBanned();
       // Author edits; any signed-in user may invest (increment) into an idea.
       allow update: if signedIn() && (
         resource.data.authorUid == request.auth.uid ||
@@ -115,7 +122,7 @@ service cloud.firestore {
     // ---- Stories (24h) ----
     match /stories/{storyId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid && !isBanned();
       // Any signed-in user may react (update reactions map); author/admin delete.
       allow update: if signedIn() && (
         resource.data.authorUid == request.auth.uid ||
@@ -129,6 +136,20 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow create: if signedIn() && request.resource.data.reporterUid == request.auth.uid;
       allow read, update, delete: if isAdmin();
+    }
+
+    // ---- Error capture (Admin Copilot) ----
+    // Any signed-in client may log a crash; only the admin can read/resolve.
+    match /errors/{errorId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ---- Monitoring digest (written by the cron via Admin SDK) ----
+    // Admin reads it in the panel; client writes are denied (server bypasses).
+    match /admin_digests/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // ---- Direct messages ----

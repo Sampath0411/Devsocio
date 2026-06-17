@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { Component, useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth, initAnalytics } from './firebase'
-import { ensureProfile, isAdmin } from './lib/auth'
+import { ensureProfile, isAdmin, logout } from './lib/auth'
+import { reportError } from './lib/errorReporter'
 import {
   subscribeProfile,
   subscribePosts,
@@ -35,6 +36,42 @@ import Notifications from './pages/Notifications'
 import PostDetail from './pages/PostDetail'
 import Admin from './pages/Admin'
 import Settings from './pages/Settings'
+
+// Catch render-time crashes anywhere in the tree, log them for the Admin
+// Copilot, and show a recoverable fallback instead of a white screen.
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error, info) {
+    reportError('react.render', {
+      message: error?.message || String(error),
+      stack: (error?.stack || '') + '\n' + (info?.componentStack || ''),
+    })
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="grid min-h-screen place-items-center p-6 text-center">
+          <div className="max-w-sm space-y-3">
+            <h1 className="font-display text-xl font-bold">Something went wrong</h1>
+            <p className="text-sm text-text-muted">
+              The error was logged for the team. Try reloading the page.
+            </p>
+            <button className="btn-primary" onClick={() => window.location.reload()}>
+              Reload
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // Auth guard — protected routes redirect to /login (PRD §9).
 function Protected({ children, wide }) {
@@ -125,8 +162,13 @@ export default function App() {
         ]
         try {
           const initial = await ensureProfile(u) // create doc on first sign-in
+          if (initial.banned && !isAdmin(u)) { await logout(); return }
           setProfile(initial)
-          unsubProfile = subscribeProfile(u.uid, setProfile)
+          // Live profile — also enforces bans applied while the user is online.
+          unsubProfile = subscribeProfile(u.uid, (p) => {
+            if (p.banned && !isAdmin(u)) { logout(); return }
+            setProfile(p)
+          })
           // Feature 12: show onboarding tour for new users only
           if (!initial.onboardingDone) setShowTour(true)
         } catch {
@@ -174,6 +216,7 @@ export default function App() {
       )}
 
       {authReady && (
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
@@ -194,6 +237,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ErrorBoundary>
       )}
     </ToastProvider>
   )

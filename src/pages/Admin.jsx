@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar, VerifiedTick } from '../components/ui'
-import { changeCredits, setCredits, setUserFlag, subscribeReports, resolveReport, deletePost } from '../lib/db'
+import {
+  changeCredits, setCredits, setUserFlag, subscribeReports, resolveReport, deletePost,
+  subscribeErrors, resolveError, subscribeAdminDigest,
+} from '../lib/db'
 import { timeAgo, formatNum } from '../lib/time'
+import AdminAgentChat from '../components/AdminAgentChat'
 import {
   ShieldAlert, Users, FileText, Mail, Coins, Plus, Flag, Trash2, Check,
-  BadgeCheck, Shield, GithubMark, GoogleMark,
+  BadgeCheck, Shield, GithubMark, GoogleMark, AlertTriangle,
 } from '../components/icons'
 
 // Sign-up method → display label, colour and icon.
@@ -120,10 +124,24 @@ export default function Admin() {
   const { users, posts } = useStore()
   const toast = useToast()
   const [reports, setReports] = useState([])
+  const [errors, setErrors] = useState([])
+  const [digest, setDigest] = useState(null)
 
   useEffect(() => subscribeReports(setReports), [])
+  useEffect(() => subscribeErrors(setErrors), [])
+  useEffect(() => subscribeAdminDigest(setDigest), [])
 
   const openReports = reports.filter((r) => r.status === 'pending')
+  const openErrors = errors.filter((e) => (e.status || 'open') === 'open')
+
+  const fixError = async (e) => {
+    try {
+      await resolveError(e.id)
+      toast('Error marked resolved', { tone: 'success' })
+    } catch {
+      toast('Could not update error', { tone: 'warning' })
+    }
+  }
 
   const removePost = async (r) => {
     try {
@@ -154,6 +172,7 @@ export default function Admin() {
     { label: 'Total Users', value: users.length, Icon: Users },
     { label: 'Total Posts', value: posts.length, Icon: FileText },
     { label: 'Open Reports', value: openReports.length, Icon: Flag },
+    { label: 'Open Errors', value: openErrors.length, Icon: AlertTriangle },
   ]
 
   // All members, most recent first.
@@ -166,7 +185,7 @@ export default function Admin() {
         <span className="pill border border-danger/40 text-danger"><ShieldAlert size={11} /> ADMIN</span>
       </div>
 
-      <div className="mb-5 grid grid-cols-3 gap-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="card flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-card bg-primary/10 text-primary"><s.Icon size={18} /></span>
@@ -174,6 +193,52 @@ export default function Admin() {
               <p className="font-display text-xl font-bold">{s.value}</p>
               <p className="text-xs text-text-muted">{s.label}</p>
             </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Admin Copilot — AI assistant that reads the site and proposes actions */}
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="font-display text-sm font-bold">Admin Copilot</h2>
+        {digest && (
+          <span className={`pill border text-xs ${
+            digest.health === 'all clear' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'}`}>
+            Last scan: {digest.health || '—'}
+            {typeof digest.openErrors === 'number' ? ` · ${digest.openErrors} errors` : ''}
+            {typeof digest.pendingReports === 'number' ? ` · ${digest.pendingReports} reports` : ''}
+          </span>
+        )}
+      </div>
+      <div className="mb-5">
+        <AdminAgentChat />
+      </div>
+
+      {/* Captured frontend errors */}
+      <h2 className="mb-3 font-display text-sm font-bold">Errors &amp; crashes</h2>
+      <div className="card mb-5 divide-y divide-border p-0">
+        {errors.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-text-muted">No errors logged — all healthy.</p>
+        )}
+        {errors.slice(0, 30).map((e) => (
+          <div key={e.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-warning/10 text-warning">
+              <AlertTriangle size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{e.message || 'Unknown error'}</p>
+              <p className="truncate text-xs text-text-muted">
+                {e.source}{e.url ? ` · ${e.url}` : ''}{e.createdAt ? ` · ${timeAgo(e.createdAt)}` : ''}
+              </p>
+            </div>
+            <span className={`pill border ${
+              (e.status || 'open') === 'open' ? 'border-warning/40 text-warning' : 'border-success/40 text-success'}`}>
+              {e.status || 'open'}
+            </span>
+            {(e.status || 'open') === 'open' && (
+              <button onClick={() => fixError(e)} className="btn-ghost !py-1.5 text-xs">
+                <Check size={13} /> Resolve
+              </button>
+            )}
           </div>
         ))}
       </div>

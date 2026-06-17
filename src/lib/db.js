@@ -521,6 +521,55 @@ export async function resolveReport(reportId, status) {
   await updateDoc(doc(db, 'reports', reportId), { status })
 }
 
+// ----------------------------------------------------------------------------
+// Error capture & monitoring (Admin Copilot)
+// ----------------------------------------------------------------------------
+// Best-effort: log a frontend error/crash so the admin (and the AI agent) can
+// see it. De-duped client-side in main.jsx; rules let any signed-in user create
+// but only the admin can read/resolve. Never throws.
+export async function logError(entry) {
+  try {
+    await addDoc(collection(db, 'errors'), {
+      status: 'open',
+      ...entry,
+      createdAt: serverTimestamp(),
+    })
+  } catch { /* non-fatal — logging must never break the app */ }
+}
+
+// Admin: live list of captured errors (newest first).
+export function subscribeErrors(onData, max = 100) {
+  try {
+    return onSnapshot(
+      query(collection(db, 'errors'), orderBy('createdAt', 'desc'), limit(max)),
+      (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => onData([]),
+    )
+  } catch {
+    onData([])
+    return () => {}
+  }
+}
+
+// Admin: mark a captured error resolved.
+export async function resolveError(errorId) {
+  await updateDoc(doc(db, 'errors', errorId), { status: 'resolved' })
+}
+
+// Admin: live view of the latest monitoring digest written by the cron scan.
+export function subscribeAdminDigest(onData) {
+  try {
+    return onSnapshot(
+      doc(db, 'admin_digests', 'latest'),
+      (snap) => onData(snap.exists() ? snap.data() : null),
+      () => onData(null),
+    )
+  } catch {
+    onData(null)
+    return () => {}
+  }
+}
+
 // Admin moderation: delete a post (allowed for the author or admin by rules).
 export async function deletePost(postId) {
   const snap = await getDoc(doc(db, 'posts', postId)).catch(() => null)
