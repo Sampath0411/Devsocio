@@ -8,6 +8,7 @@
 import { auth } from '../firebase'
 import {
   deletePost, resolveReport, setUserFlag, changeCredits, setCredits, resolveError,
+  findUserUid,
 } from './db'
 
 export async function askAgent(messages) {
@@ -42,28 +43,52 @@ export function describeAction(a) {
   }
 }
 
+// Resolve the user an action targets; throws a clear error if not found so we
+// never silently write to a wrong or non-existent document.
+async function requireUid(idOrName) {
+  const uid = await findUserUid(idOrName)
+  if (!uid) throw new Error(`Couldn't find a user matching "${idOrName}". Ask the Copilot to look the user up first.`)
+  return uid
+}
+
 // Execute an admin-approved action. Returns a short confirmation string.
 export async function executeAction(a) {
   const { name, args = {} } = a
   switch (name) {
-    case 'delete_post':
+    case 'delete_post': {
+      if (!args.postId) throw new Error('No postId provided.')
       await deletePost(args.postId)
       return `Deleted post ${args.postId}.`
-    case 'resolve_report':
-      await resolveReport(args.reportId, args.status)
-      return `Report ${args.reportId} marked ${args.status}.`
-    case 'set_user_flag':
-      await setUserFlag(args.uid, args.field, !!args.value)
+    }
+    case 'resolve_report': {
+      if (!args.reportId) throw new Error('No reportId provided.')
+      await resolveReport(args.reportId, args.status || 'reviewed')
+      return `Report ${args.reportId} marked ${args.status || 'reviewed'}.`
+    }
+    case 'set_user_flag': {
+      const uid = await requireUid(args.uid)
+      await setUserFlag(uid, args.field, !!args.value)
       return `${args.field} ${args.value ? 'granted to' : 'removed from'} ${args.uid}.`
-    case 'change_credits':
-      await changeCredits(args.uid, Number(args.delta))
-      return `${args.delta >= 0 ? '+' : ''}${args.delta} credits → ${args.uid}.`
-    case 'set_credits':
-      await setCredits(args.uid, Number(args.value))
-      return `Set ${args.uid} credits to ${args.value}.`
-    case 'resolve_error':
+    }
+    case 'change_credits': {
+      const uid = await requireUid(args.uid)
+      const delta = Number(args.delta)
+      if (!Number.isFinite(delta)) throw new Error('Invalid credit amount.')
+      await changeCredits(uid, delta)
+      return `${delta >= 0 ? '+' : ''}${delta} credits → ${args.uid}.`
+    }
+    case 'set_credits': {
+      const uid = await requireUid(args.uid)
+      const value = Number(args.value)
+      if (!Number.isFinite(value)) throw new Error('Invalid credit value.')
+      await setCredits(uid, value)
+      return `Set ${args.uid} credits to ${value}.`
+    }
+    case 'resolve_error': {
+      if (!args.errorId) throw new Error('No errorId provided.')
       await resolveError(args.errorId)
       return `Error ${args.errorId} resolved.`
+    }
     default:
       throw new Error(`Unknown action: ${name}`)
   }

@@ -28,7 +28,14 @@ const OR_KEY = process.env.OPENROUTER_API_KEY || ''
 // The agent needs a tool-calling model; most free models don't support tools
 // reliably. Override with AGENT_MODEL. gpt-4o-mini is cheap and tool-capable.
 const OR_MODEL = process.env.AGENT_MODEL || 'openai/gpt-4o-mini'
+// If the primary model is unavailable/rate-limited, try these (all tool-capable).
+const FALLBACK_MODELS = [
+  'openai/gpt-4o-mini',
+  'anthropic/claude-3.5-haiku',
+  'google/gemini-flash-1.5',
+]
 const MAX_TOOL_ROUNDS = 6 // safety cap on the read-tool loop
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function getApp() {
   if (admin.apps.length) return admin.app()
@@ -204,7 +211,9 @@ You help the single site administrator run the platform: investigating users, po
 
 Rules:
 - Use the READ tools (get_overview, find_users, get_user, list_recent_posts, search_posts, get_post, list_reports, list_errors, get_digest) freely to gather facts before answering. Prefer real data over guessing.
-- For anything that CHANGES data (delete_post, resolve_report, set_user_flag, change_credits, set_credits, resolve_error) you must call the matching ACTION tool. These are NOT executed automatically — they are shown to the admin for one-click approval. After calling one, tell the admin plainly what you proposed and why, and that it is waiting for their approval.
+- CRITICAL: Before proposing ANY action that targets a user (set_user_flag, change_credits, set_credits), you MUST first call find_users or get_user to obtain that user's exact "uid", and pass that exact uid string in the action. Never pass a username, display name, or guessed value as the uid. The same applies to postId / reportId / errorId — only use IDs you got from a tool.
+- To give a user a specific total balance (e.g. "give Sampath 1,000,000 credits"), use set_credits with value=1000000. To add/subtract from their current balance, use change_credits with a delta.
+- For anything that CHANGES data (delete_post, resolve_report, set_user_flag, change_credits, set_credits, resolve_error) call the matching ACTION tool. These are NOT executed automatically — they are shown to the admin for one-click approval. After calling one, tell the admin plainly what you proposed (include the resolved uid/username) and that it is waiting for approval.
 - Be concise and concrete. Reference real IDs/usernames you looked up. When you report errors or reports, summarise patterns (e.g. "3 crashes all from PostDetail").
 - You cannot edit source code or fix bugs yourself. You can detect, explain, and recommend fixes for the admin to apply. Never claim you fixed code.
 - Never invent uids, postIds, credit balances, or counts. If a tool returns nothing, say so.`
@@ -317,9 +326,10 @@ async function runReadTool(db, name, args) {
 }
 
 // ---------------------------------------------------------------------------
-// LLM call (OpenRouter — OpenAI-compatible)
+// LLM call (OpenRouter — OpenAI-compatible) with retry + model fallback so a
+// transient 429/5xx or an unavailable model doesn't fail the whole turn.
 // ---------------------------------------------------------------------------
-async function callLLM(messages) {
+async function callOnce(model, messages) {
   const res = await fetch(OR_URL, {
     method: 'POST',
     headers: {
@@ -329,11 +339,11 @@ async function callLLM(messages) {
       'X-Title': 'DevSocio Admin Copilot',
     },
     body: JSON.stringify({
-      model: OR_MODEL,
+      model,
       messages,
       tools: toolSpecs(),
       tool_choice: 'auto',
-      temperature: 0.3,
+      temperature: 0.2,
     }),
   })
   if (!res.ok) {
@@ -346,6 +356,27 @@ async function callLLM(messages) {
   const msg = data?.choices?.[0]?.message
   if (!msg) throw new Error('OpenRouter returned no message')
   return msg
+}
+
+async function callLLM(messages) {
+  const candidates = [OR_MODEL, ...FALLBACK_MODELS.filter((m) => m !== OR_MODEL)]
+  let lastErr
+  for (const model of candidates) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await callOnce(model, messages)
+      } catch (err) {
+        lastErr = err
+        // Retry the same model once on transient rate-limit / server errors.
+        if ((err.status === 429 || err.status >= 500) && attempt === 0) {
+          await sleep(1000)
+          continue
+        }
+        break // otherwise fall through to the next model
+      }
+    }
+  }
+  throw lastErr || new Error('All models failed')
 }
 
 // ---------------------------------------------------------------------------

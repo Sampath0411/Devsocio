@@ -80,6 +80,33 @@ export async function fetchProfileByUsername(username) {
   return snap.empty ? null : snap.docs[0].data()
 }
 
+// Resolve a user to their uid from a uid, username, display name or email.
+// Used by the Admin Copilot so an approved action never writes to a wrong/
+// non-existent doc when the model passes a name instead of a real uid.
+export async function findUserUid(idOrName) {
+  const key = (idOrName || '').toString().trim()
+  if (!key) return null
+  // 1) Treat it as a uid (the common, correct case).
+  const direct = await getDoc(doc(db, 'users', key)).catch(() => null)
+  if (direct && direct.exists()) return key
+  // 2) Exact username match.
+  const byUsername = await fetchProfileByUsername(key).catch(() => null)
+  if (byUsername?.uid) return byUsername.uid
+  // 3) Case-insensitive scan over username / displayName / email.
+  const lower = key.toLowerCase()
+  const snap = await getDocs(query(collection(db, 'users'), limit(500))).catch(() => null)
+  if (snap) {
+    const hit = snap.docs
+      .map((d) => d.data())
+      .find((u) =>
+        (u.username || '').toLowerCase() === lower ||
+        (u.displayName || '').toLowerCase() === lower ||
+        (u.email || '').toLowerCase() === lower)
+    if (hit?.uid) return hit.uid
+  }
+  return null
+}
+
 // Live list of users (Explore, Suggested, Leaderboard, Admin). Returns REAL
 // users only — no mock fallback — so search and Admin reflect actual accounts.
 export function subscribeUsers(onData, max = 200) {
