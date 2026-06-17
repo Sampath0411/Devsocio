@@ -3,12 +3,13 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from './Toast'
-import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock, VerifiedTick } from './ui'
-import { reportContent, repost } from '../lib/db'
+import { Avatar, StackPill, AIBadge, LikeButton, GradientBlock, VerifiedTick, FounderBadge, FounderName } from './ui'
+import { reportContent, repost, deletePost } from '../lib/db'
+import { isFounder, isAdmin } from '../lib/auth'
 import { clean, cleanCode } from '../lib/sanitize'
 import { timeAgo } from '../lib/time'
 import { TYPE_META } from './postTypes'
-import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag, X } from './icons'
+import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag, X, Trash2, Crown } from './icons'
 
 const REPORT_REASONS = ['Spam', 'Abuse', 'Misinformation', 'NSFW']
 
@@ -54,6 +55,20 @@ export default function PostCard({ post }) {
   const likeCount = post.likes || 0
   // Live verified status of the author (post stores only an author snapshot).
   const authorUser = users.find((u) => u.uid === (post.authorUid || post.author?.uid) || u.username === post.author?.username)
+  const authorFounder = isFounder(authorUser)
+  const authorUid = post.authorUid || post.author?.uid
+  // The post owner — or the admin — can delete it.
+  const canDelete = !!firebaseUser && (firebaseUser.uid === authorUid || isAdmin(firebaseUser))
+
+  const removePost = async () => {
+    setMenuOpen(false)
+    try {
+      await deletePost(post.postId)
+      toast('Post deleted', { tone: 'success' })
+    } catch {
+      toast('Could not delete post', { tone: 'warning' })
+    }
+  }
 
   const report = async (reason) => {
     setMenuOpen(false)
@@ -82,7 +97,7 @@ export default function PostCard({ post }) {
       {/* header */}
       <div className="flex items-center gap-3">
         <Link to={`/profile/${post.author.username}`}>
-          <Avatar src={post.author.avatar} alt={post.author.displayName} size={44} />
+          <Avatar src={post.author.avatar} alt={post.author.displayName} size={44} founder={authorFounder} />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -90,9 +105,13 @@ export default function PostCard({ post }) {
               to={`/profile/${post.author.username}`}
               className="flex items-center gap-1 truncate font-semibold hover:underline"
             >
-              {post.author.displayName}
+              {authorFounder
+                ? <FounderName>{post.author.displayName}</FounderName>
+                : post.author.displayName}
+              {authorFounder && <Crown size={14} fill="currentColor" className="text-[#FFD66B]" />}
               {authorUser?.verified && <VerifiedTick size={14} />}
             </Link>
+            {authorFounder && <FounderBadge />}
             <span className="truncate text-sm text-text-muted">@{post.author.username}</span>
             <span className="text-text-muted">·</span>
             <span className="shrink-0 text-xs text-text-muted">{timeAgo(post.createdAt)}</span>
@@ -114,6 +133,15 @@ export default function PostCard({ post }) {
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 z-20 mt-1 w-44 rounded-card border border-border bg-surface p-1.5 shadow-2xl">
+                {canDelete && (
+                  <>
+                    <button onClick={removePost}
+                      className="flex w-full items-center gap-2 rounded-input px-2.5 py-2 text-sm text-danger hover:bg-danger/10">
+                      <Trash2 size={14} /> Delete post
+                    </button>
+                    <div className="my-1 border-t border-border" />
+                  </>
+                )}
                 <p className="px-2 py-1 text-[10px] font-semibold uppercase text-text-muted">Report post</p>
                 {REPORT_REASONS.map((r) => (
                   <button key={r} onClick={() => report(r)}

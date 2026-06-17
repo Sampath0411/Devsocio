@@ -5,11 +5,12 @@
 // are NOT executed by the server — the UI asks the admin to approve each one,
 // then executeAction() performs it here using the same db helpers the Admin
 // panel already uses (which the Firestore rules permit for the admin).
-import { auth } from '../firebase'
+import { auth, db } from '../firebase'
 import {
   deletePost, resolveReport, setUserFlag, changeCredits, setCredits, resolveError,
-  findUserUid,
+  findUserUid, getDoc, doc,
 } from './db'
+import { ADMIN_EMAIL } from './auth'
 
 export async function askAgent(messages) {
   const user = auth.currentUser
@@ -51,6 +52,14 @@ async function requireUid(idOrName) {
   return uid
 }
 
+// Is this uid the platform owner? (Protected from ban / flag removal.)
+async function isOwnerUid(uid) {
+  const snap = await getDoc(doc(db, 'users', uid)).catch(() => null)
+  if (!snap || !snap.exists()) return false
+  const d = snap.data()
+  return (d.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase() || d.founder === true
+}
+
 // Execute an admin-approved action. Returns a short confirmation string.
 export async function executeAction(a) {
   const { name, args = {} } = a
@@ -67,6 +76,13 @@ export async function executeAction(a) {
     }
     case 'set_user_flag': {
       const uid = await requireUid(args.uid)
+      // The owner can never be banned or stripped of verified/moderator.
+      if (await isOwnerUid(uid)) {
+        if (args.field === 'banned' && args.value === true) throw new Error('Protected: the owner account cannot be banned.')
+        if ((args.field === 'verified' || args.field === 'moderator') && args.value === false) {
+          throw new Error(`Protected: the owner is permanently ${args.field}.`)
+        }
+      }
       await setUserFlag(uid, args.field, !!args.value)
       return `${args.field} ${args.value ? 'granted to' : 'removed from'} ${args.uid}.`
     }

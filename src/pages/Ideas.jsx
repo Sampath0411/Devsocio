@@ -3,11 +3,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { Avatar, StackPill, AIBadge, AILoader, EmptyState } from '../components/ui'
-import { subscribeIdeas, createIdea, investInIdea, requestCollab } from '../lib/db'
+import { Avatar, StackPill, AIBadge, AILoader, EmptyState, FounderBadge, FounderName } from '../components/ui'
+import { subscribeIdeas, createIdea, investInIdea, requestCollab, deleteIdea } from '../lib/db'
+import { isFounder, isAdmin } from '../lib/auth'
 import { scoreIdea } from '../lib/ai'
 import { timeAgo } from '../lib/time'
-import { Coins, MessageCircle, Handshake, Lightbulb, Check, Circle } from '../components/icons'
+import { Coins, MessageCircle, Handshake, Lightbulb, Check, Circle, Trash2, Crown } from '../components/icons'
 
 const SORTS = ['Newest', 'Most Invested', 'AI Score', 'Most Discussed']
 
@@ -25,16 +26,46 @@ export function IdeaCard({ idea, onInvest, onCollab }) {
   const strengths = idea.strengths || []
   const weaknesses = idea.weaknesses || []
   const competitors = idea.competitors || []
+  const toast = useToast()
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  const users = useStore((s) => s.users)
+  const authorUser = users.find((u) => u.uid === idea.author?.uid || u.username === idea.author?.username)
+  const authorFounder = isFounder(authorUser)
+  const canDelete = !!firebaseUser && (firebaseUser.uid === idea.author?.uid || isAdmin(firebaseUser))
+
+  const removeIdea = async () => {
+    try {
+      await deleteIdea(idea.ideaId)
+      toast('Idea deleted', { tone: 'success' })
+    } catch {
+      toast('Could not delete idea', { tone: 'warning' })
+    }
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card space-y-3">
       <div className="flex items-start gap-3">
         <Link to={`/profile/${idea.author?.username}`}>
-          <Avatar src={idea.author?.avatar} alt={idea.author?.displayName} size={40} />
+          <Avatar src={idea.author?.avatar} alt={idea.author?.displayName} size={40} founder={authorFounder} />
         </Link>
         <div className="flex-1">
           <h3 className="font-display text-lg font-bold leading-tight">{idea.title}</h3>
-          <p className="text-xs text-text-muted">by @{idea.author?.username} · {timeAgo(idea.createdAt) || 'now'}</p>
+          <p className="flex items-center gap-1 text-xs text-text-muted">
+            by{' '}
+            {authorFounder
+              ? <FounderName>@{idea.author?.username}</FounderName>
+              : <>@{idea.author?.username}</>}
+            {authorFounder && <Crown size={11} fill="currentColor" className="text-[#FFD66B]" />}
+            {authorFounder && <FounderBadge />}
+            <span>· {timeAgo(idea.createdAt) || 'now'}</span>
+          </p>
         </div>
+        {canDelete && (
+          <button onClick={removeIdea} title="Delete idea"
+            className="grid h-8 w-8 place-items-center rounded-input border border-border text-text-muted hover:border-danger hover:text-danger">
+            <Trash2 size={14} />
+          </button>
+        )}
         <ScoreRing score={idea.aiScore} />
       </div>
 

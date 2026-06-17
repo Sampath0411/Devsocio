@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { STACK_COLORS, DEV_LEVELS } from '../data/mock'
 import { PLATFORM_LABEL } from '../lib/links'
-import { Heart, Sparkles, Circle, BadgeCheck, Shield, GithubMark, Link2 } from './icons'
+import { isFounder } from '../lib/auth'
+import { Heart, Sparkles, Circle, BadgeCheck, Shield, GithubMark, Link2, Crown } from './icons'
 
 // ---------- Social links row (icon auto-detected from the URL) ----------
 const PLATFORM_ICON = {
@@ -51,13 +52,45 @@ export function ModBadge() {
   )
 }
 
-// Name + inline badges, reused across cards/profile.
+// ---------- Founder / Owner badge — the platform owner, shown to everyone ----------
+export function FounderBadge({ size = 11 }) {
+  return (
+    <span
+      className="pill border font-semibold"
+      style={{
+        color: '#FFD66B',
+        borderColor: '#FFD66B66',
+        background: 'linear-gradient(90deg, rgba(255,214,107,0.18), rgba(255,138,76,0.18))',
+      }}
+      title="Founder · DevSocio Owner"
+    >
+      <Crown size={size} fill="currentColor" /> Founder
+    </span>
+  )
+}
+
+// A gradient-gold treatment for the owner's display name.
+export function FounderName({ children, className = '' }) {
+  return (
+    <span
+      className={`bg-clip-text font-bold text-transparent ${className}`}
+      style={{ backgroundImage: 'linear-gradient(90deg,#FFD66B,#FF8A4C)' }}
+    >
+      {children}
+    </span>
+  )
+}
+
+// Name + inline badges, reused across cards/profile. The owner gets a gold
+// name, a crown, and the Founder badge so every user can recognise them.
 export function NameWithBadges({ user, className = '' }) {
+  const founder = isFounder(user)
   return (
     <span className={`inline-flex items-center gap-1 ${className}`}>
-      {user?.displayName}
+      {founder ? <FounderName>{user?.displayName}</FounderName> : user?.displayName}
+      {founder && <Crown size={14} fill="currentColor" className="text-[#FFD66B]" />}
       {user?.verified && <VerifiedTick size={15} />}
-      {user?.moderator && <Shield size={13} className="text-success" />}
+      {user?.moderator && !founder && <Shield size={13} className="text-success" />}
     </span>
   )
 }
@@ -99,8 +132,8 @@ export function AIBadge({ children }) {
   )
 }
 
-export function Avatar({ src, alt, size = 40, ring }) {
-  return (
+export function Avatar({ src, alt, size = 40, ring, founder }) {
+  const img = (
     <img
       src={src}
       alt={alt}
@@ -112,6 +145,18 @@ export function Avatar({ src, alt, size = 40, ring }) {
       }`}
     />
   )
+  // Owner gets a gold gradient ring around the avatar, visible to everyone.
+  if (founder) {
+    return (
+      <span
+        className="inline-grid shrink-0 place-items-center rounded-full p-[2px]"
+        style={{ background: 'linear-gradient(135deg,#FFD66B,#FF8A4C)' }}
+      >
+        {img}
+      </span>
+    )
+  }
+  return img
 }
 
 // ---------- Loaders (PRD §6.5) ----------

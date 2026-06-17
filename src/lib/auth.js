@@ -15,6 +15,13 @@ export const ADMIN_EMAIL = 'sampathlox@gmail.com'
 export const isAdmin = (user) =>
   !!user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
+// The platform owner/founder — always verified + moderator, shown specially
+// to everyone. Detected by the admin email OR a persisted `founder` flag (the
+// flag lets other users recognise the owner from a full profile doc, since
+// post author snapshots don't carry the email).
+export const isFounder = (user) =>
+  isAdmin(user) || user?.founder === true
+
 const avatarFor = (seed) =>
   `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6c63ff`
 
@@ -57,6 +64,12 @@ function defaultProfile(user, extra = {}) {
 // let the app sync the real doc once Firestore is reachable.
 export async function ensureProfile(user, extra = {}) {
   const fallback = defaultProfile(user, extra)
+  // The owner account is permanently verified + moderator + founder and can
+  // never be banned. We re-assert this on every login so it can't be undone.
+  const ownerFlags = isAdmin(user)
+    ? { verified: true, moderator: true, founder: true, banned: false }
+    : null
+  if (ownerFlags) Object.assign(fallback, ownerFlags)
   try {
     const ref = doc(db, 'users', user.uid)
     const snap = await getDoc(ref)
@@ -69,6 +82,7 @@ export async function ensureProfile(user, extra = {}) {
     const data = snap.data()
     const patch = { lastLoginAt: serverTimestamp() }
     if (!data.provider) patch.provider = providerOf(user)
+    if (ownerFlags) Object.assign(patch, ownerFlags) // keep owner perms enforced
     updateDoc(ref, patch).catch(() => {})
     return { ...data, ...patch }
   } catch (err) {

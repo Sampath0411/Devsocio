@@ -7,6 +7,7 @@ import {
   subscribeErrors, resolveError, subscribeAdminDigest,
 } from '../lib/db'
 import { timeAgo, formatNum } from '../lib/time'
+import { isFounder } from '../lib/auth'
 import AdminAgentChat from '../components/AdminAgentChat'
 import {
   ShieldAlert, Users, FileText, Mail, Coins, Plus, Flag, Trash2, Check,
@@ -62,7 +63,13 @@ function MemberRow({ u }) {
     } finally { setBusy(false) }
   }
 
+  const locked = isFounder(u) // owner is permanently verified + moderator
+
   const toggleFlag = async (field) => {
+    if (locked) {
+      toast('The owner is permanently verified & moderator — cannot be changed', { tone: 'warning' })
+      return
+    }
     try {
       await setUserFlag(u.uid, field, !u[field])
       toast(`${field} ${!u[field] ? 'granted to' : 'removed from'} ${u.displayName}`, { tone: 'success' })
@@ -93,12 +100,14 @@ function MemberRow({ u }) {
 
       {/* badge toggles */}
       <div className="flex items-center gap-1">
-        <button onClick={() => toggleFlag('verified')} title="Toggle verified"
-          className={`grid h-7 w-7 place-items-center rounded-input border ${u.verified ? 'border-accent text-accent' : 'border-border text-text-muted'}`}>
+        <button onClick={() => toggleFlag('verified')} disabled={locked}
+          title={locked ? 'Owner — permanently verified' : 'Toggle verified'}
+          className={`grid h-7 w-7 place-items-center rounded-input border ${u.verified ? 'border-accent text-accent' : 'border-border text-text-muted'} ${locked ? 'opacity-50' : ''}`}>
           <BadgeCheck size={14} />
         </button>
-        <button onClick={() => toggleFlag('moderator')} title="Toggle moderator"
-          className={`grid h-7 w-7 place-items-center rounded-input border ${u.moderator ? 'border-success text-success' : 'border-border text-text-muted'}`}>
+        <button onClick={() => toggleFlag('moderator')} disabled={locked}
+          title={locked ? 'Owner — permanently moderator' : 'Toggle moderator'}
+          className={`grid h-7 w-7 place-items-center rounded-input border ${u.moderator ? 'border-success text-success' : 'border-border text-text-muted'} ${locked ? 'opacity-50' : ''}`}>
           <Shield size={14} />
         </button>
       </div>

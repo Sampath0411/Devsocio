@@ -20,6 +20,14 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned == true;
     }
+    // The owner account (by email on the doc) can never be banned or stripped
+    // of verified/moderator — even by an admin write. Applies to user updates.
+    function protectsOwner() {
+      return !(resource.data.email == 'sampathlox@gmail.com'
+        && (request.resource.data.banned == true
+            || request.resource.data.verified == false
+            || request.resource.data.moderator == false));
+    }
 
     // ---- Users & their private subcollections ----
     match /users/{uid} {
@@ -27,13 +35,13 @@ service cloud.firestore {
       // Static hosting (no server): credit earning runs client-side, so owners
       // may update their own profile incl. credits. Admin may update anyone.
       allow create: if isUser(uid);
-      allow update: if isAdmin() || (
+      allow update: if (isAdmin() || (
         isUser(uid) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moderator'])
       ) || (
         signedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
-      );
+      )) && protectsOwner();
       allow delete: if false;
 
       // Bookmarks and follow edges belong to the user. Follower/following

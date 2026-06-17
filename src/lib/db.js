@@ -384,6 +384,11 @@ export async function createIdea(idea) {
   return ref.id
 }
 
+// Delete an idea — allowed for the author (or admin) by the Firestore rules.
+export async function deleteIdea(ideaId) {
+  await deleteDoc(doc(db, 'ideas', ideaId))
+}
+
 export async function investInIdea(ideaId, amount) {
   await updateDoc(doc(db, 'ideas', ideaId), { invested: increment(amount) })
 }

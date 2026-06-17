@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import PostCard from '../components/PostCard'
-import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge } from '../components/ui'
+import { Avatar, LevelBadge, StackPill, EmptyState, SocialLinks, VerifiedTick, ModBadge, FounderBadge, FounderName } from '../components/ui'
+import { isFounder } from '../lib/auth'
 import { fetchProfileByUsername, requestCollab, isOnline, subscribeIdeas, investInIdea, fetchFollowingUids, fetchFollowersUids, updateProfileDoc } from '../lib/db'
 import { fetchRepos } from '../lib/github'
 import { achievementsFor } from '../lib/achievements'
@@ -192,7 +193,7 @@ export default function Profile() {
       <div className="-mt-10 px-2">
         <div className="flex items-end justify-between">
           <span className="rounded-full border-4 border-bg">
-            <Avatar src={profile.avatar} alt={profile.displayName} size={88} />
+            <Avatar src={profile.avatar} alt={profile.displayName} size={88} founder={isFounder(profile)} />
           </span>
           <div className="flex gap-2">
             {isMe ? (
@@ -217,12 +218,15 @@ export default function Profile() {
         <div className="mt-3">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="flex items-center gap-1.5 font-display text-2xl font-bold">
-              {profile.displayName}
+              {isFounder(profile)
+                ? <FounderName className="font-display text-2xl">{profile.displayName}</FounderName>
+                : profile.displayName}
               {profile.verified && <VerifiedTick size={20} />}
-              {profile.topDev && <Crown size={18} className="text-warning" />}
+              {!isFounder(profile) && profile.topDev && <Crown size={18} className="text-warning" />}
             </h1>
             <LevelBadge level={profile.devLevel} />
-            {profile.moderator && <ModBadge />}
+            {isFounder(profile) && <FounderBadge size={12} />}
+            {profile.moderator && !isFounder(profile) && <ModBadge />}
           </div>
           <p className="flex items-center gap-2 text-sm text-text-muted">
             @{profile.username}
