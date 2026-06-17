@@ -71,8 +71,9 @@ DevSocio fills this gap with a developer-first social platform:
 10 free AI uses/day on free tier. Extra calls unlockable via Credits.
 
 ### Admin Copilot (AI agent)
-An AI operations assistant lives **inside the Admin panel** (`/admin`, admin-only).
-Chat with it to run the site; it reads live data and proposes actions you approve.
+An AI operations assistant (powered by **OpenRouter**) lives **inside the Admin
+panel** (`/admin`, admin-only). Chat with it to run the site; it reads live data
+and proposes actions you approve.
 
 | Capability | How it works |
 |---|---|
@@ -82,13 +83,13 @@ Chat with it to run the site; it reads live data and proposes actions you approv
 | 24/7 monitoring | A **Vercel Cron** (`api/monitor.js`, daily) scans errors + pending reports into `admin_digests/latest`; the panel shows a health badge |
 
 **Security:** the agent endpoint verifies the Firebase ID token **and** the admin
-email server-side. The freemodel.dev key never reaches the browser. All writes go
+email server-side. The OpenRouter key never reaches the browser. All writes go
 through the same Firestore rules the admin already uses. The agent **cannot edit
 source code** — it detects and recommends; humans apply code fixes.
 
-Requires these Vercel env vars (see `.env.example`): `FREEMODEL_API_KEY`,
-`FREEMODEL_BASE_URL`, `FREEMODEL_MODEL` (must support tool calling),
-`FIREBASE_SERVICE_ACCOUNT`, and `CRON_SECRET`.
+Requires these Vercel env vars (see `.env.example`): `OPENROUTER_API_KEY` (shared
+with `/api/ai`), `AGENT_MODEL` (must support tool calling, e.g.
+`openai/gpt-4o-mini`), `FIREBASE_SERVICE_ACCOUNT`, and `CRON_SECRET`.
 
 ### Credits & Gamification
 - Earn credits for: daily login, posts getting likes, accepting collabs, referring friends

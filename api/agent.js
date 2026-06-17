@@ -3,7 +3,7 @@
 // This is the brain of the in-admin "Admin Copilot". The browser (admin only)
 // POSTs the chat history; this function:
 //   1. Verifies the caller is signed in AND is the admin (ID token + email).
-//   2. Calls an OpenAI-compatible LLM (freemodel.dev) with a set of TOOLS.
+//   2. Calls OpenRouter (OpenAI-compatible) with a set of TOOLS.
 //   3. Executes READ-ONLY tools itself (via the Firebase Admin SDK) and loops
 //      the results back to the model until it produces a final answer.
 //   4. NEVER mutates data itself. When the model wants to take an ACTION
@@ -12,20 +12,22 @@
 //
 // Vercel → Settings → Environment Variables:
 //   FIREBASE_SERVICE_ACCOUNT = <full service-account JSON pasted as one value>
-//   FREEMODEL_API_KEY        = <your freemodel.dev key>
-//   FREEMODEL_BASE_URL       = https://api.freemodel.dev/v1   (override if different)
-//   FREEMODEL_MODEL          = <a model that supports tool/function calling>
+//   OPENROUTER_API_KEY       = <your sk-or-... key> (shared with /api/ai)
+//   AGENT_MODEL              = <a model that supports tool/function calling>
+//                              (optional; defaults to openai/gpt-4o-mini)
 //   ADMIN_EMAIL              = sampathlox@gmail.com           (optional override)
 
 import admin from 'firebase-admin'
 
 // ---------------------------------------------------------------------------
-// Config
+// Config — uses OpenRouter (same provider/key as api/ai.js).
 // ---------------------------------------------------------------------------
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'sampathlox@gmail.com').toLowerCase()
-const FM_KEY = process.env.FREEMODEL_API_KEY || ''
-const FM_BASE = (process.env.FREEMODEL_BASE_URL || 'https://api.freemodel.dev/v1').replace(/\/$/, '')
-const FM_MODEL = process.env.FREEMODEL_MODEL || 'gpt-4o-mini'
+const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const OR_KEY = process.env.OPENROUTER_API_KEY || ''
+// The agent needs a tool-calling model; most free models don't support tools
+// reliably. Override with AGENT_MODEL. gpt-4o-mini is cheap and tool-capable.
+const OR_MODEL = process.env.AGENT_MODEL || 'openai/gpt-4o-mini'
 const MAX_TOOL_ROUNDS = 6 // safety cap on the read-tool loop
 
 function getApp() {
@@ -315,17 +317,19 @@ async function runReadTool(db, name, args) {
 }
 
 // ---------------------------------------------------------------------------
-// LLM call (OpenAI-compatible)
+// LLM call (OpenRouter — OpenAI-compatible)
 // ---------------------------------------------------------------------------
 async function callLLM(messages) {
-  const res = await fetch(`${FM_BASE}/chat/completions`, {
+  const res = await fetch(OR_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${FM_KEY}`,
+      Authorization: `Bearer ${OR_KEY}`,
       'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://devsocio.app',
+      'X-Title': 'DevSocio Admin Copilot',
     },
     body: JSON.stringify({
-      model: FM_MODEL,
+      model: OR_MODEL,
       messages,
       tools: toolSpecs(),
       tool_choice: 'auto',
@@ -334,13 +338,13 @@ async function callLLM(messages) {
   })
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
-    const err = new Error(`freemodel ${res.status}: ${detail.slice(0, 200)}`)
+    const err = new Error(`OpenRouter ${res.status}: ${detail.slice(0, 200)}`)
     err.status = res.status
     throw err
   }
   const data = await res.json()
   const msg = data?.choices?.[0]?.message
-  if (!msg) throw new Error('freemodel returned no message')
+  if (!msg) throw new Error('OpenRouter returned no message')
   return msg
 }
 
@@ -352,8 +356,8 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
-  if (!FM_KEY) {
-    res.status(500).json({ error: 'FREEMODEL_API_KEY is not configured on the server' })
+  if (!OR_KEY) {
+    res.status(500).json({ error: 'OPENROUTER_API_KEY is not configured on the server' })
     return
   }
 
