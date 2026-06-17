@@ -28,7 +28,7 @@ export default {
         pill: '999px',
       },
       maxWidth: {
-        feed: '680px',
+        feed: '760px',
       },
       spacing: {
         sidebar: '260px',

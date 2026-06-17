@@ -135,6 +135,7 @@ export default function Admin() {
   const [reports, setReports] = useState([])
   const [errors, setErrors] = useState([])
   const [digest, setDigest] = useState(null)
+  const [tab, setTab] = useState('AI Copilot')
 
   useEffect(() => subscribeReports(setReports), [])
   useEffect(() => subscribeErrors(setErrors), [])
@@ -188,7 +189,7 @@ export default function Admin() {
   const members = [...users].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-4xl">
       <div className="mb-4 flex items-center gap-2">
         <h1 className="font-display text-xl font-bold">Admin Panel</h1>
         <span className="pill border border-danger/40 text-danger"><ShieldAlert size={11} /> ADMIN</span>
@@ -206,23 +207,42 @@ export default function Admin() {
         ))}
       </div>
 
-      {/* Admin Copilot — AI assistant that reads the site and proposes actions */}
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="font-display text-sm font-bold">Admin Copilot</h2>
-        {digest && (
-          <span className={`pill border text-xs ${
-            digest.health === 'all clear' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'}`}>
-            Last scan: {digest.health || '—'}
-            {typeof digest.openErrors === 'number' ? ` · ${digest.openErrors} errors` : ''}
-            {typeof digest.pendingReports === 'number' ? ` · ${digest.pendingReports} reports` : ''}
-          </span>
-        )}
-      </div>
-      <div className="mb-5">
-        <AdminAgentChat />
+      {/* Tabs */}
+      <div className="mb-5 flex flex-wrap gap-2 border-b border-border pb-1">
+        {['AI Copilot', 'Overview', 'Moderation', 'Members'].map((t) => {
+          const badge = t === 'Moderation' ? openReports.length + openErrors.length : 0
+          return (
+            <button key={t} onClick={() => setTab(t)}
+              className={`relative rounded-t-card px-3 py-2 text-sm font-semibold transition-colors ${
+                tab === t ? 'border-b-2 border-primary text-primary' : 'text-text-muted hover:text-text-primary'}`}>
+              {t}
+              {badge > 0 && (
+                <span className="ml-1.5 rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold text-white">{badge}</span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
+      {/* Admin Copilot — AI assistant that reads the site and proposes actions */}
+      {tab === 'AI Copilot' && (
+        <div className="mb-5">
+          {digest && (
+            <div className="mb-2 flex items-center gap-2">
+              <span className={`pill border text-xs ${
+                digest.health === 'all clear' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'}`}>
+                Last scan: {digest.health || '—'}
+                {typeof digest.openErrors === 'number' ? ` · ${digest.openErrors} errors` : ''}
+                {typeof digest.pendingReports === 'number' ? ` · ${digest.pendingReports} reports` : ''}
+              </span>
+            </div>
+          )}
+          <AdminAgentChat height="72vh" />
+        </div>
+      )}
+
       {/* Captured frontend errors */}
+      {tab === 'Moderation' && (<>
       <h2 className="mb-3 font-display text-sm font-bold">Errors &amp; crashes</h2>
       <div className="card mb-5 divide-y divide-border p-0">
         {errors.length === 0 && (
@@ -251,8 +271,10 @@ export default function Admin() {
           </div>
         ))}
       </div>
+      </>)}
 
       {/* Real sign-up / login breakdown by auth provider */}
+      {tab === 'Overview' && (<>
       <h2 className="mb-3 font-display text-sm font-bold">Sign-ups by method</h2>
       <div className="card mb-5 space-y-4">
         {PROVIDERS.map(({ key, label, color, Icon }) => {
@@ -280,8 +302,10 @@ export default function Admin() {
           Based on {users.length} loaded {users.length === 1 ? 'account' : 'accounts'}.
         </p>
       </div>
+      </>)}
 
       {/* Reported content (PRD §7.4) */}
+      {tab === 'Moderation' && (<>
       <h2 className="mb-3 font-display text-sm font-bold">Reported content</h2>
       <div className="card mb-5 divide-y divide-border p-0">
         {reports.length === 0 && (
@@ -319,8 +343,10 @@ export default function Admin() {
           </div>
         ))}
       </div>
+      </>)}
 
       {/* Manage members — grant credits */}
+      {tab === 'Members' && (<>
       <h2 className="mb-3 font-display text-sm font-bold">Manage members &amp; credits</h2>
       <div className="card divide-y divide-border p-0">
         {members.map((u) => <MemberRow key={u.uid} u={u} />)}
@@ -328,6 +354,7 @@ export default function Admin() {
           <p className="px-4 py-6 text-center text-sm text-text-muted">No members yet.</p>
         )}
       </div>
+      </>)}
     </div>
   )
 }

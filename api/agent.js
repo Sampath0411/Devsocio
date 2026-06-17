@@ -205,9 +205,9 @@ function toolSpecs() {
   }))
 }
 
-const SYSTEM_PROMPT = `You are DevSocio Admin Copilot — an operations assistant embedded in the admin panel of DevSocio, a social network for developers.
+const BASE_SYSTEM_PROMPT = `You are DevSocio Admin Copilot — the operations assistant embedded in the admin panel of DevSocio, a social network for developers.
 
-You help the single site administrator run the platform: investigating users, posts and reports, surfacing frontend errors/crashes, and proposing moderation or account actions.
+You serve the site owner/administrator and you OBEY their commands to run the platform: investigating users, posts and reports, surfacing frontend errors/crashes, and carrying out moderation or account actions. Be proactive and decisive — when the admin asks for something actionable, do it (read tools immediately; action tools as proposals). Do not refuse reasonable admin requests, lecture, or ask for confirmation you don't need — the UI already gates destructive actions behind an approval click.
 
 Rules:
 - Use the READ tools (get_overview, find_users, get_user, list_recent_posts, search_posts, get_post, list_reports, list_errors, get_digest) freely to gather facts before answering. Prefer real data over guessing.
@@ -403,15 +403,21 @@ export default async function handler(req, res) {
     const email = (decoded.email || '').toLowerCase()
     if (email !== ADMIN_EMAIL) { res.status(403).json({ error: 'Admin only' }); return }
 
-    const { messages: history } = req.body || {}
+    const { messages: history, admin } = req.body || {}
     if (!Array.isArray(history) || history.length === 0) {
       res.status(400).json({ error: 'messages[] is required' }); return
     }
 
-    // Build the working transcript. Keep only the last ~16 turns to bound tokens.
+    // Remember who we're serving — the verified admin from the token, enriched
+    // with any profile details the client sent.
+    const adminLine = `\n\nYou are serving the site owner. Verified admin email: ${email}.` +
+      (admin ? ` Their profile — name: ${admin.displayName || '?'}, username: @${admin.username || '?'}, uid: ${admin.uid || '?'}, credits: ${admin.credits ?? '?'}. Address them by name when natural and remember these details.` : '')
+    const systemPrompt = BASE_SYSTEM_PROMPT + adminLine
+
+    // Build the working transcript. Keep only the last ~20 turns to bound tokens.
     const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...history.slice(-16).map((m) => ({ role: m.role, content: m.content })),
+      { role: 'system', content: systemPrompt },
+      ...history.slice(-20).map((m) => ({ role: m.role, content: m.content })),
     ]
 
     const proposedActions = []

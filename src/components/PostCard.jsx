@@ -21,6 +21,8 @@ export default function PostCard({ post }) {
   const firebaseUser = useStore((s) => s.firebaseUser)
   const me = useStore((s) => s.user)
   const users = useStore((s) => s.users)
+  const following = useStore((s) => s.following)
+  const toggleFollow = useStore((s) => s.toggleFollow)
   const toast = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
   const [repostOpen, setRepostOpen] = useState(false)
@@ -59,6 +61,16 @@ export default function PostCard({ post }) {
   const authorUid = post.authorUid || post.author?.uid
   // The post owner — or the admin — can delete it.
   const canDelete = !!firebaseUser && (firebaseUser.uid === authorUid || isAdmin(firebaseUser))
+  // Follow button beside the name (not on my own posts).
+  const isMyPost = !!firebaseUser && firebaseUser.uid === authorUid
+  const isFollowing = !!authorUid && !!following[authorUid]
+
+  const onFollow = (e) => {
+    e.preventDefault()
+    if (!authorUid) return
+    toggleFollow(authorUid)
+    if (!isFollowing) toast(`Following ${post.author?.displayName || 'user'}`, { tone: 'success' })
+  }
 
   const removePost = async () => {
     setMenuOpen(false)
@@ -113,6 +125,18 @@ export default function PostCard({ post }) {
             </Link>
             {authorFounder && <FounderBadge />}
             <span className="truncate text-sm text-text-muted">@{post.author.username}</span>
+            {!isMyPost && authorUid && (
+              <button
+                onClick={onFollow}
+                className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+                  isFollowing
+                    ? 'border-border text-text-muted hover:border-danger hover:text-danger'
+                    : 'border-primary bg-primary/10 text-primary hover:bg-primary/20'
+                }`}
+              >
+                {isFollowing ? 'Following' : 'Follow'}
+              </button>
+            )}
             <span className="text-text-muted">·</span>
             <span className="shrink-0 text-xs text-text-muted">{timeAgo(post.createdAt)}</span>
           </div>
@@ -156,7 +180,7 @@ export default function PostCard({ post }) {
       </div>
 
       {/* body */}
-      <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-text-primary">
+      <p className="whitespace-pre-wrap text-[16.5px] leading-relaxed text-text-primary">
         {clean(post.content)}
       </p>
 

@@ -36,9 +36,9 @@ export default function Feed() {
   return (
     <div className="mx-auto w-full max-w-feed">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold">Your Feed</h1>
-        <button className="btn-primary !py-2" onClick={() => setCreateOpen(true)}>
-          <Plus size={16} /> Create
+        <h1 className="font-display text-2xl font-bold">Your Feed</h1>
+        <button className="btn-primary !py-2.5" onClick={() => setCreateOpen(true)}>
+          <Plus size={18} /> Create
         </button>
       </div>
 

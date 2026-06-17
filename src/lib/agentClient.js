@@ -12,14 +12,14 @@ import {
 } from './db'
 import { ADMIN_EMAIL } from './auth'
 
-export async function askAgent(messages) {
+export async function askAgent(messages, admin) {
   const user = auth.currentUser
   if (!user) throw new Error('Not signed in')
   const token = await user.getIdToken()
   const res = await fetch('/api/agent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, admin }),
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `Agent request failed (${res.status})`)
