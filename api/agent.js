@@ -197,6 +197,20 @@ const ACTION_TOOLS = {
   },
 }
 
+// Pull the trailing SUGGESTIONS: [...] line out of a reply; return the clean
+// reply text plus up to 4 follow-up suggestion strings.
+function splitSuggestions(text) {
+  if (!text) return { reply: text || '', suggestions: [] }
+  const m = text.match(/SUGGESTIONS:\s*(\[[\s\S]*?\])\s*$/i)
+  if (!m) return { reply: text.trim(), suggestions: [] }
+  let suggestions = []
+  try {
+    const parsed = JSON.parse(m[1])
+    if (Array.isArray(parsed)) suggestions = parsed.filter((s) => typeof s === 'string' && s.trim()).slice(0, 4)
+  } catch { /* ignore malformed */ }
+  return { reply: text.slice(0, m.index).trim() || text.trim(), suggestions }
+}
+
 function toolSpecs() {
   const all = { ...READ_TOOLS, ...ACTION_TOOLS }
   return Object.entries(all).map(([name, t]) => ({
@@ -216,7 +230,10 @@ Rules:
 - For anything that CHANGES data (delete_post, resolve_report, set_user_flag, change_credits, set_credits, resolve_error) call the matching ACTION tool. These are NOT executed automatically — they are shown to the admin for one-click approval. After calling one, tell the admin plainly what you proposed (include the resolved uid/username) and that it is waiting for approval.
 - Be concise and concrete. Reference real IDs/usernames you looked up. When you report errors or reports, summarise patterns (e.g. "3 crashes all from PostDetail").
 - You cannot edit source code or fix bugs yourself. You can detect, explain, and recommend fixes for the admin to apply. Never claim you fixed code.
-- Never invent uids, postIds, credit balances, or counts. If a tool returns nothing, say so.`
+- Never invent uids, postIds, credit balances, or counts. If a tool returns nothing, say so.
+- ALWAYS end EVERY reply with a final line in exactly this form:
+  SUGGESTIONS: ["...", "...", "..."]
+  Provide three short (max ~6 words) follow-up commands the admin is most likely to want NEXT, tailored to the current conversation (e.g. after listing reports: ["Remove the top report","Show that user's posts","Mark all reviewed"]). This line is parsed out and shown as quick buttons — never mention it in your prose.`
 
 // ---------------------------------------------------------------------------
 // Read-tool execution (Firebase Admin SDK)
@@ -429,11 +446,8 @@ export default async function handler(req, res) {
 
       if (!calls.length) {
         // Final natural-language answer.
-        res.status(200).json({
-          reply: msg.content || '(no response)',
-          proposedActions,
-          toolTrace,
-        })
+        const { reply, suggestions } = splitSuggestions(msg.content || '(no response)')
+        res.status(200).json({ reply, suggestions, proposedActions, toolTrace })
         return
       }
 
@@ -472,7 +486,8 @@ export default async function handler(req, res) {
     // Hit the round cap — ask the model once more for a plain summary.
     messages.push({ role: 'user', content: 'Summarise what you found and any proposed actions in plain text now. Do not call more tools.' })
     const finalMsg = await callLLM(messages).catch(() => ({ content: 'Reached the tool-call limit. Please refine your request.' }))
-    res.status(200).json({ reply: finalMsg.content || 'Done.', proposedActions, toolTrace })
+    const { reply, suggestions } = splitSuggestions(finalMsg.content || 'Done.')
+    res.status(200).json({ reply, suggestions, proposedActions, toolTrace })
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Agent request failed' })
   }

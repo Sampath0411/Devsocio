@@ -26,6 +26,7 @@ export async function askAgent(messages, admin) {
   return {
     reply: data.reply || '(no response)',
     proposedActions: data.proposedActions || [],
+    suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
     toolTrace: data.toolTrace || [],
   }
 }

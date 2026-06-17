@@ -97,14 +97,15 @@ export default function AdminAgentChat({ height = 460 }) {
     if (!content || loading) return
     setInput('')
     setPending([])
-    setSuggestions(shufflePick(SUGGESTION_POOL, 4)) // change suggestions every time
     const next = [...messages, { role: 'user', content }]
     setMessages(next)
     setLoading(true)
     try {
-      const { reply, proposedActions } = await askAgent(next, adminContext)
+      const { reply, proposedActions, suggestions } = await askAgent(next, adminContext)
       setMessages((m) => [...m, { role: 'assistant', content: reply }])
       setPending(proposedActions)
+      // Contextual follow-ups from the agent; fall back to a fresh shuffle.
+      setSuggestions(suggestions && suggestions.length ? suggestions : shufflePick(SUGGESTION_POOL, 4))
     } catch (err) {
       setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${err.message}` }])
     } finally {
@@ -190,9 +191,12 @@ export default function AdminAgentChat({ height = 460 }) {
         )}
       </div>
 
-      {/* Rotating suggestions — change every send and on each mount */}
-      {messages.length <= 1 && (
+      {/* Contextual suggestions — adapt to the conversation, shown throughout */}
+      {!loading && suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+          {messages.length > 1 && (
+            <span className="w-full px-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">Suggested next</span>
+          )}
           {suggestions.map((s) => (
             <button key={s} onClick={() => send(s)} className="pill border border-border text-xs hover:border-accent">
               {s}
