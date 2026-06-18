@@ -12,6 +12,7 @@ import '../features/explore/explore_screen.dart';
 import '../features/ideas/ideas_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/profile/edit_profile_screen.dart';
+import '../features/profile/follow_list_screen.dart';
 import '../features/messages/messages_screen.dart';
 import '../features/messages/chat_screen.dart';
 import '../features/notifications/notifications_screen.dart';
@@ -81,6 +82,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ProfileScreen(username: s.pathParameters['username']!)),
       GoRoute(
           path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
+      GoRoute(
+          path: '/followers/:uid',
+          builder: (_, s) =>
+              FollowListScreen(uid: s.pathParameters['uid']!, followers: true)),
+      GoRoute(
+          path: '/following/:uid',
+          builder: (_, s) =>
+              FollowListScreen(uid: s.pathParameters['uid']!, followers: false)),
       GoRoute(
           path: '/chat/:uid',
           builder: (_, s) => ChatScreen(otherUid: s.pathParameters['uid']!)),

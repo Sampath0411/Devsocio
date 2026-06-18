@@ -162,11 +162,17 @@ service cloud.firestore {
 
     // ---- Direct messages ----
     match /conversations/{cid} {
-      allow read, update: if signedIn() && request.auth.uid in resource.data.members;
+      // Reading a not-yet-created conversation is harmless (returns nothing);
+      // tolerate a null resource so opening a fresh chat never errors.
+      allow read: if signedIn() && (resource == null || request.auth.uid in resource.data.members);
+      allow update: if signedIn() && request.auth.uid in resource.data.members;
       allow create: if signedIn() && request.auth.uid in request.resource.data.members;
 
       match /messages/{messageId} {
-        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members;
+        allow read: if signedIn() && (
+          !exists(/databases/$(database)/documents/conversations/$(cid)) ||
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members
+        );
         allow create: if signedIn() && request.resource.data.from == request.auth.uid && request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members;
       }
     }

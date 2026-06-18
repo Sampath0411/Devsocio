@@ -81,15 +81,20 @@ class _ProfileBody extends ConsumerWidget {
                         url: user.avatar,
                         size: 76,
                         founderRing: user.founder,
-                        online: user.isOnline),
+                        online: user.isOnline,
+                        tapToView: true),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _stat('Posts', user.postsCount),
-                          _stat('Followers', user.followersCount),
-                          _stat('Following', user.followingCount),
+                          _stat('Followers', user.followersCount,
+                              onTap: () =>
+                                  context.push('/followers/${user.uid}')),
+                          _stat('Following', user.followingCount,
+                              onTap: () =>
+                                  context.push('/following/${user.uid}')),
                         ],
                       ),
                     ),
@@ -210,15 +215,22 @@ class _ProfileBody extends ConsumerWidget {
     );
   }
 
-  Widget _stat(String label, int value) => Column(
-        children: [
-          Text('$value',
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w700)),
-          Text(label,
-              style:
-                  const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-        ],
+  Widget _stat(String label, int value, {VoidCallback? onTap}) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Column(
+            children: [
+              Text('${value < 0 ? 0 : value}',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textMuted)),
+            ],
+          ),
+        ),
       );
 
   IconData _linkIcon(String platform) {

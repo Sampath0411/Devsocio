@@ -14,6 +14,7 @@ import '../data/user_repository.dart';
 import '../models/post.dart';
 import '../models/app_user.dart';
 import 'avatar.dart';
+import 'photo_viewer.dart';
 import 'ui.dart';
 
 class PostCard extends ConsumerStatefulWidget {
@@ -234,18 +235,21 @@ class _PostCardState extends ConsumerState<PostCard> {
                 ),
               ),
             ],
-            // Image
+            // Image (tap to view full-screen)
             if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
               const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: post.imageUrl!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (_, __) => Container(
-                      height: 180, color: AppColors.surfaceAlt),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+              GestureDetector(
+                onTap: () => openPhoto(context, post.imageUrl!),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: post.imageUrl!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    placeholder: (_, __) => Container(
+                        height: 180, color: AppColors.surfaceAlt),
+                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ],

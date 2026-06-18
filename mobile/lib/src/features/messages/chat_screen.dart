@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/theme.dart';
 import '../../data/firebase_providers.dart';
@@ -20,19 +21,33 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _input = TextEditingController();
-  final _scroll = ScrollController();
   Timer? _typingTimer;
+  bool _ensured = false;
 
-  // Use the Firebase Auth uid (available immediately after login) as identity —
-  // the Firestore profile stream may not have emitted yet, which would produce
-  // a wrong conversation id and get message writes rejected by the rules.
+  // Auth uid is available immediately (unlike the Firestore profile stream),
+  // so the conversation id is always correct.
   String get _myUid => ref.read(firebaseAuthProvider).currentUser?.uid ?? '';
   String get _cid => convoId(_myUid, widget.otherUid);
 
   @override
+  void initState() {
+    super.initState();
+    // Create the conversation doc so reads succeed under the rules, then mark
+    // it read by me.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensure());
+  }
+
+  Future<void> _ensure() async {
+    if (_ensured || _myUid.isEmpty) return;
+    _ensured = true;
+    final repo = ref.read(messageRepositoryProvider);
+    await repo.ensureConversation(_myUid, widget.otherUid);
+    await repo.markRead(_cid, _myUid);
+  }
+
+  @override
   void dispose() {
     _input.dispose();
-    _scroll.dispose();
     _typingTimer?.cancel();
     if (_myUid.isNotEmpty) {
       ref.read(messageRepositoryProvider).setTyping(_cid, _myUid, false);
@@ -73,6 +88,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Mark read whenever the thread changes while this screen is open.
+    ref.listen(threadProvider(_cid), (_, __) {
+      if (_myUid.isNotEmpty) {
+        ref.read(messageRepositoryProvider).markRead(_cid, _myUid);
+      }
+    });
+
     final otherStream =
         ref.watch(userRepositoryProvider).watchProfile(widget.otherUid);
 
@@ -87,7 +109,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               children: [
                 Avatar(
                     url: other?.avatar ?? '',
-                    size: 34,
+                    size: 36,
                     online: other?.isOnline ?? false),
                 const SizedBox(width: 10),
                 Expanded(
@@ -101,7 +123,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         Text(other?.displayName ?? '...',
                             style: const TextStyle(
                                 fontSize: 15, fontWeight: FontWeight.w600)),
-                        Text(other?.isOnline ?? false ? 'Online' : 'Offline',
+                        Text(
+                            (other?.isOnline ?? false) ? 'Active now' : 'Offline',
                             style: TextStyle(
                                 fontSize: 11,
                                 color: (other?.isOnline ?? false)
@@ -116,38 +139,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           body: Column(
             children: [
-              Expanded(child: _MessageList(cid: _cid, myUid: _myUid)),
+              Expanded(
+                  child: _MessageList(
+                      cid: _cid, myUid: _myUid, otherUid: widget.otherUid)),
               _TypingIndicator(cid: _cid, otherUid: widget.otherUid),
               _CollabBanner(cid: _cid, myUid: _myUid),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _input,
-                          onChanged: _onChanged,
-                          minLines: 1,
-                          maxLines: 4,
-                          decoration:
-                              const InputDecoration(hintText: 'Message...'),
-                          onSubmitted: (_) => _send(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      CircleAvatar(
-                        backgroundColor: AppColors.primary,
-                        child: IconButton(
-                          icon: const Icon(Icons.send, color: Colors.white),
-                          onPressed: _send,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _Composer(controller: _input, onChanged: _onChanged, onSend: _send),
             ],
           ),
         );
@@ -156,49 +153,151 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
+class _Composer extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onSend;
+  const _Composer(
+      {required this.controller, required this.onChanged, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                minLines: 1,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'Message...',
+                  filled: true,
+                  fillColor: AppColors.surfaceAlt,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onSubmitted: (_) => onSend(),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Material(
+              color: AppColors.primary,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onSend,
+                child: const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Icon(Icons.send, color: Colors.white, size: 22),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MessageList extends ConsumerWidget {
   final String cid;
   final String myUid;
-  const _MessageList({required this.cid, required this.myUid});
+  final String otherUid;
+  const _MessageList(
+      {required this.cid, required this.myUid, required this.otherUid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final thread = ref.watch(threadProvider(cid));
-    return thread.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('$e')),
-      data: (messages) {
-        if (messages.isEmpty) {
-          return const Center(
+    final convo = ref.watch(conversationProvider(cid)).value;
+    final messages = thread.value ?? const [];
+
+    if (messages.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: 120),
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
               child: Text('Say hi 👋',
-                  style: TextStyle(color: AppColors.textMuted)));
-        }
-        return ListView.builder(
-          reverse: true,
-          padding: const EdgeInsets.all(12),
-          itemCount: messages.length,
-          itemBuilder: (_, i) {
-            final m = messages[messages.length - 1 - i];
-            final mine = m.from == myUid;
-            return Align(
-              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.72),
-                margin: const EdgeInsets.symmetric(vertical: 3),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: mine ? AppColors.primary : AppColors.surfaceAlt,
-                  borderRadius: BorderRadius.circular(16),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 16)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Index of the last message I sent (for the "Seen" receipt placement).
+    int lastMineIdx = -1;
+    for (var i = 0; i < messages.length; i++) {
+      if (messages[i].from == myUid) lastMineIdx = i;
+    }
+    final otherReadAt = convo?.readAt(otherUid);
+    final lastMine = lastMineIdx >= 0 ? messages[lastMineIdx] : null;
+    final seen = lastMine != null &&
+        otherReadAt != null &&
+        lastMine.createdAtDate != null &&
+        !otherReadAt.isBefore(lastMine.createdAtDate!);
+
+    return ListView.builder(
+      reverse: true,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      itemCount: messages.length,
+      itemBuilder: (_, i) {
+        final idx = messages.length - 1 - i;
+        final m = messages[idx];
+        final mine = m.from == myUid;
+        final showSeen = mine && idx == lastMineIdx && seen;
+        return Column(
+          crossAxisAlignment:
+              mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.74),
+              margin: const EdgeInsets.symmetric(vertical: 2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: mine ? AppColors.primary : AppColors.surfaceAlt,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(mine ? 18 : 4),
+                  bottomRight: Radius.circular(mine ? 4 : 18),
                 ),
-                child: Text(m.text,
-                    style: TextStyle(
-                        color:
-                            mine ? Colors.white : AppColors.textPrimary)),
               ),
-            );
-          },
+              child: Text(m.text,
+                  style: TextStyle(
+                      color: mine ? Colors.white : AppColors.textPrimary,
+                      height: 1.3)),
+            ),
+            if (showSeen)
+              Padding(
+                padding: const EdgeInsets.only(right: 4, top: 2, bottom: 4),
+                child: Text(
+                  m.createdAtDate == null
+                      ? 'Seen'
+                      : 'Seen ${timeago.format(m.createdAtDate!)}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textMuted),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -216,21 +315,25 @@ class _TypingIndicator extends ConsumerWidget {
     if (convo == null || !convo.isTyping(otherUid)) {
       return const SizedBox.shrink();
     }
-    return const Padding(
-      padding: EdgeInsets.only(left: 16, bottom: 4),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text('typing…',
+    return Container(
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.only(left: 18, bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Text('typing…',
             style: TextStyle(
                 color: AppColors.textMuted,
                 fontStyle: FontStyle.italic,
-                fontSize: 12)),
+                fontSize: 13)),
       ),
     );
   }
 }
 
-/// Shows an Accept button on a pending collab conversation.
 class _CollabBanner extends ConsumerWidget {
   final String cid;
   final String myUid;
@@ -242,7 +345,6 @@ class _CollabBanner extends ConsumerWidget {
     if (convo == null || !convo.isCollab || convo.collabAccepted) {
       return const SizedBox.shrink();
     }
-    // Only the recipient (not the initiator) accepts.
     final iAmInitiator = convo.lastFrom == myUid;
     if (iAmInitiator) {
       return Container(

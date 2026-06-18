@@ -91,10 +91,14 @@ class PostRepository {
     final authorUid = snap.data()?['authorUid'] as String?;
     await _posts.doc(postId).delete();
     if (authorUid != null) {
-      await _db
-          .collection('users')
-          .doc(authorUid)
-          .update({'postsCount': FieldValue.increment(-1)}).catchError((_) {});
+      // Decrement postsCount but never below 0 (a plain increment(-1) can drive
+      // the counter negative when it's already 0).
+      final userRef = _db.collection('users').doc(authorUid);
+      await _db.runTransaction((tx) async {
+        final u = await tx.get(userRef);
+        final current = ((u.data()?['postsCount'] ?? 0) as num).toInt();
+        tx.update(userRef, {'postsCount': current > 0 ? current - 1 : 0});
+      }).catchError((_) {});
     }
   }
 

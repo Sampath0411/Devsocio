@@ -1,22 +1,35 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
+import 'photo_viewer.dart';
 
 class Avatar extends StatelessWidget {
   final String url;
   final double size;
   final bool founderRing;
   final bool online;
+  /// When true, tapping opens the photo full-screen (Instagram-style).
+  final bool tapToView;
   const Avatar({
     super.key,
     required this.url,
     this.size = 40,
     this.founderRing = false,
     this.online = false,
+    this.tapToView = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final core = _build(context);
+    if (!tapToView || url.isEmpty) return core;
+    return GestureDetector(
+      onTap: () => openPhoto(context, url, heroTag: 'avatar-$url'),
+      child: Hero(tag: 'avatar-$url', child: core),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     Widget img = ClipOval(
       child: url.isEmpty
           ? Container(

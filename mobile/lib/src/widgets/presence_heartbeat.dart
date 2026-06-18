@@ -18,6 +18,8 @@ class PresenceHeartbeat extends ConsumerStatefulWidget {
 class _PresenceHeartbeatState extends ConsumerState<PresenceHeartbeat> {
   Timer? _timer;
 
+  bool _healed = false;
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +30,13 @@ class _PresenceHeartbeatState extends ConsumerState<PresenceHeartbeat> {
   void _beat() {
     final uid = ref.read(firebaseAuthProvider).currentUser?.uid;
     if (uid == null) return;
-    ref.read(userRepositoryProvider).touchPresence(uid).catchError((_) {});
+    final repo = ref.read(userRepositoryProvider);
+    repo.touchPresence(uid).catchError((_) {});
+    // One-shot repair of any negative counters (e.g. postsCount stuck at -2).
+    if (!_healed) {
+      _healed = true;
+      repo.healCounters(uid).catchError((_) {});
+    }
   }
 
   @override

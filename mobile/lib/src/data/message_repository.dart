@@ -20,29 +20,61 @@ class MessageRepository {
       .where('members', arrayContains: uid)
       .snapshots()
       .map((s) {
-        final list =
-            s.docs.map((d) => Conversation.fromMap(d.id, d.data())).toList();
+        final list = s.docs
+            .map((d) => Conversation.fromMap(d.id, d.data()))
+            // Hide empty placeholder convos (opened but never messaged).
+            .where((c) => c.last.isNotEmpty)
+            .toList();
         list.sort((a, b) => (b.updatedAtDate ?? DateTime(0))
             .compareTo(a.updatedAtDate ?? DateTime(0)));
         return list;
-      });
+      })
+      .handleError((_) {});
 
-  Stream<Conversation?> watchConversation(String cid) => _convos
-      .doc(cid)
-      .snapshots()
-      .map((d) => d.exists ? Conversation.fromMap(d.id, d.data()!) : null);
+  Stream<Conversation?> watchConversation(String cid) async* {
+    yield null;
+    yield* _convos
+        .doc(cid)
+        .snapshots()
+        .map((d) => d.exists ? Conversation.fromMap(d.id, d.data()!) : null)
+        .handleError((_) {});
+  }
 
-  Stream<List<Message>> watchThread(String cid) => _convos
+  Stream<List<Message>> watchThread(String cid) async* {
+    // Emit empty immediately so a brand-new chat shows the empty state, not a
+    // spinner or a permission error if the conversation doc doesn't exist yet.
+    yield <Message>[];
+    yield* _convos
+        .doc(cid)
+        .collection('messages')
+        .orderBy('createdAt')
+        .limit(100)
+        .snapshots()
+        .map((s) => s.docs.map((d) => Message.fromMap(d.id, d.data())).toList())
+        .handleError((_) {}); // ignore transient permission-denied on empty convo
+  }
+
+  /// Create the conversation doc (members only) so reads succeed under the
+  /// security rules. Called when a chat is opened; harmless if it already
+  /// exists. Empty placeholder convos (no `last`) are hidden from the list.
+  Future<void> ensureConversation(String meUid, String otherUid) async {
+    final cid = convoId(meUid, otherUid);
+    await _convos.doc(cid).set({
+      'members': [meUid, otherUid],
+    }, SetOptions(merge: true)).catchError((_) {});
+  }
+
+  /// Mark the conversation read by [uid] up to now (powers "Seen" receipts).
+  Future<void> markRead(String cid, String uid) => _convos
       .doc(cid)
-      .collection('messages')
-      .orderBy('createdAt')
-      .limit(100)
-      .snapshots()
-      .map((s) => s.docs.map((d) => Message.fromMap(d.id, d.data())).toList());
+      .set({'read': {uid: FieldValue.serverTimestamp()}},
+          SetOptions(merge: true))
+      .catchError((_) {});
 
   Future<void> setTyping(String cid, String uid, bool isTyping) => _convos
       .doc(cid)
-      .update({'typing.$uid': isTyping ? DateTime.now().millisecondsSinceEpoch : 0})
+      .set({'typing': {uid: isTyping ? DateTime.now().millisecondsSinceEpoch : 0}},
+          SetOptions(merge: true))
       .catchError((_) {});
 
   Future<String> sendMessage(String meUid, String otherUid, String text,

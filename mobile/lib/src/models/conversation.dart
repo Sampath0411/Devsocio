@@ -9,6 +9,7 @@ class Conversation {
   final bool isCollab;
   final bool collabAccepted;
   final Map<String, dynamic> typing;
+  final Map<String, dynamic> read; // uid -> last-read Timestamp
   final dynamic updatedAt;
 
   const Conversation({
@@ -19,6 +20,7 @@ class Conversation {
     required this.isCollab,
     required this.collabAccepted,
     required this.typing,
+    required this.read,
     required this.updatedAt,
   });
 
@@ -34,6 +36,9 @@ class Conversation {
     return DateTime.now().millisecondsSinceEpoch - v.toInt() < 4000;
   }
 
+  /// When [uid] last read this conversation (null if never).
+  DateTime? readAt(String uid) => tsToDate(read[uid]);
+
   factory Conversation.fromMap(String id, Map<String, dynamic> m) => Conversation(
         id: id,
         members: List<String>.from((m['members'] ?? const []) as List),
@@ -42,6 +47,7 @@ class Conversation {
         isCollab: (m['isCollab'] ?? false) as bool,
         collabAccepted: (m['collabAccepted'] ?? false) as bool,
         typing: Map<String, dynamic>.from((m['typing'] ?? const {}) as Map),
+        read: Map<String, dynamic>.from((m['read'] ?? const {}) as Map),
         updatedAt: m['updatedAt'],
       );
 }
