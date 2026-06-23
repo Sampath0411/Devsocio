@@ -2,18 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DevSocio design system — PRD §6 */
+/* ── DevSocio design system — "Coastal Dev" palette ── */
+/* Space Indigo #222e50 | Cerulean #007991 | Seagrass #439a86 | Celadon #bcd8c1 | Light Gold #e9d985 */
 :root {
-  --color-primary: #6c63ff;
-  --color-accent: #00e5ff;
-  --color-bg: #0d0d0d;
-  --color-surface: #16161e;
-  --color-border: #2a2a3d;
-  --color-text-primary: #eeeeff;
-  --color-text-muted: #8888aa;
-  --color-success: #00c896;
-  --color-warning: #ffb800;
-  --color-danger: #ff4c4c;
+  --color-primary: #007991;
+  --color-primary-soft: #0a8fab;
+  --color-accent: #439a86;
+  --color-gold: #e9d985;
+  --color-indigo: #222e50;
+  --color-celadon: #bcd8c1;
+  --color-bg: #0b1020;
+  --color-surface: #141d33;
+  --color-surface-2: #1b2742;
+  --color-border: #2a3a5c;
+  --color-text-primary: #eef3f8;
+  --color-text-secondary: #c4d0e0;
+  --color-text-muted: #8497b4;
+  --color-success: #439a86;
+  --color-warning: #e9d985;
+  --color-danger: #e2607a;
 }
 
 @layer base {
@@ -28,9 +35,9 @@
     margin: 0;
   }
   ::selection {
-    background: rgba(108, 99, 255, 0.4);
+    background: rgba(0, 121, 145, 0.35);
   }
-  /* Custom scrollbar — dev-coded feel */
+  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -43,65 +50,74 @@
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a52;
+    background: #364970;
   }
 }
 
 @layer components {
-  /* Buttons (24px radius pills — §6.4) */
+  /* Buttons */
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-btn px-5 py-2.5 text-sm font-semibold
            transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
   }
   .btn-primary {
-    @apply btn bg-primary text-white hover:bg-[#7d75ff] shadow-[0_0_20px_-6px_#6c63ff];
+    @apply btn bg-primary text-white hover:bg-primary-soft shadow-glow;
+  }
+  .btn-gold {
+    @apply btn bg-gold text-indigo font-bold hover:brightness-110 shadow-glow-gold;
   }
   .btn-ghost {
     @apply btn bg-surface text-text-primary border border-border hover:border-primary/60;
   }
-  .btn-accent {
-    @apply btn bg-accent text-bg hover:brightness-110;
+  .btn-outline {
+    @apply btn border-2 border-primary text-primary hover:bg-primary/10;
   }
 
   /* Cards */
   .card {
-    @apply bg-surface border border-border rounded-card p-4;
+    @apply bg-surface border border-border rounded-card p-4 shadow-card;
   }
 
-  /* Inputs (8px radius — §6.4) */
+  /* Inputs */
   .input {
     @apply w-full bg-bg border border-border rounded-input px-3.5 py-2.5 text-sm text-text-primary
            placeholder:text-text-muted outline-none transition-colors
            focus:border-primary focus:ring-2 focus:ring-primary/20;
   }
 
-  /* Tech-stack pills (999px — §6.4) */
+  /* Pills */
   .pill {
     @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-semibold leading-none;
   }
 
-  /* Shimmer skeleton (§6.5.2) */
+  /* Glass panel */
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-card;
+  }
+
+  /* Shimmer skeleton */
   .skeleton {
     background: linear-gradient(
       90deg,
-      #1c1c28 0px,
-      #25253a 40px,
-      #1c1c28 80px
+      #141d33 0px,
+      #1b2742 40px,
+      #141d33 80px
     );
     background-size: 600px 100%;
     @apply animate-shimmer rounded;
   }
 
+  /* Navigation */
   .nav-link {
     @apply flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium text-text-muted
-           transition-colors hover:bg-bg hover:text-text-primary;
+           transition-colors hover:bg-surface-2 hover:text-text-primary;
   }
   .nav-link-active {
-    @apply bg-bg text-text-primary;
+    @apply bg-primary/10 text-primary;
   }
 }
 
-/* Focus-visible accessibility (§11 WCAG 2.1 AA) */
+/* Focus-visible accessibility */
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;

@@ -133,7 +133,7 @@ export default function Stories() {
 
               <div onClick={advance}
                 className="flex min-h-[320px] cursor-pointer items-center justify-center rounded-card p-6 text-center text-lg font-medium text-white"
-                style={{ background: 'linear-gradient(135deg,#6C63FF,#00E5FF)' }}>
+                style={{ background: 'linear-gradient(135deg,#007991,#439a86)' }}>
                 {current.text}
               </div>
 

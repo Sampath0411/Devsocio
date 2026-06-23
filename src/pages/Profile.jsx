@@ -186,7 +186,7 @@ export default function Profile() {
         className="h-36 w-full rounded-card bg-cover bg-center"
         style={profile.coverUrl
           ? { backgroundImage: `url(${profile.coverUrl})` }
-          : { background: profile.banner || 'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)' }}
+          : { background: profile.banner || 'linear-gradient(120deg,#007991,#439a86,#141d33)' }}
       />
 
       <div className="-mt-10 px-2">

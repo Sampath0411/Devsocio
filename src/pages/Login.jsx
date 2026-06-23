@@ -92,7 +92,7 @@ export function AuthShell({ title, subtitle, children }) {
     <div className="flex min-h-screen items-center justify-center px-5 py-10">
       <div
         className="pointer-events-none fixed left-1/2 top-1/4 -z-10 h-96 w-96 -translate-x-1/2 opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(closest-side,#6C63FF,transparent)' }}
+        style={{ background: 'radial-gradient(closest-side,#007991,transparent)' }}
       />
       <div className="w-full max-w-sm space-y-5">
         <Link to="/" className="flex items-center justify-center gap-2">

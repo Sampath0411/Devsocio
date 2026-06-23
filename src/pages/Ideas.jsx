@@ -16,7 +16,7 @@ function ScoreRing({ score }) {
   const pct = (score / 10) * 100
   return (
     <div className="grid h-14 w-14 place-items-center rounded-full text-sm font-bold"
-      style={{ background: `conic-gradient(#6C63FF ${pct}%, #2A2A3D ${pct}%)` }}>
+      style={{ background: `conic-gradient(#007991 ${pct}%, #2a3a5c ${pct}%)` }}>
       <span className="grid h-11 w-11 place-items-center rounded-full bg-surface text-accent">{score}</span>
     </div>
   )

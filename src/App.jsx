@@ -102,7 +102,6 @@ export default function App() {
   // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {
     initAnalytics()
-    const claimedMilestones = new Set()
     const unsubPosts = subscribePosts((posts) => {
       setPosts(posts)
       // Feature 5: Check if any post owned by the current user just crossed
@@ -182,7 +181,7 @@ export default function App() {
             uid: u.uid,
             username: (u.email || u.uid).split('@')[0],
             displayName: u.displayName || 'Developer',
-            avatar: u.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${u.uid}&backgroundColor=6c63ff`,
+            avatar: u.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${u.uid}&backgroundColor=007991`,
             devLevel: 'Builder',
             techStack: ['React'],
             credits: 100,

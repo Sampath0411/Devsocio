@@ -23,7 +23,7 @@ export const isFounder = (user) =>
   isAdmin(user) || user?.founder === true
 
 const avatarFor = (seed) =>
-  `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6c63ff`
+  `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&backgroundColor=007991`
 
 // Which sign-in method created/owns this account: 'google' | 'github' | 'email'.
 function providerOf(user) {

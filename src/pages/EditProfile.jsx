@@ -12,12 +12,12 @@ import { Sparkles, Camera, Handshake, Rocket, Plus, X } from '../components/icon
 
 // Preset banner gradients users can pick (PRD §3.2.1 cover photo).
 const BANNERS = [
-  'linear-gradient(120deg,#6C63FF,#00E5FF,#16161E)',
-  'linear-gradient(120deg,#FF4C4C,#FFB800)',
-  'linear-gradient(120deg,#00C896,#00E5FF)',
-  'linear-gradient(120deg,#6C63FF,#FF4C4C)',
-  'linear-gradient(120deg,#FFB800,#FF7043)',
-  'linear-gradient(120deg,#0A66C2,#00E5FF)',
+  'linear-gradient(120deg,#007991,#439a86,#222e50)',
+  'linear-gradient(120deg,#439a86,#bcd8c1)',
+  'linear-gradient(120deg,#222e50,#007991)',
+  'linear-gradient(120deg,#e9d985,#439a86)',
+  'linear-gradient(120deg,#007991,#bcd8c1)',
+  'linear-gradient(120deg,#222e50,#439a86,#e9d985)',
 ]
 
 const STACK_OPTIONS = Object.keys(STACK_COLORS)

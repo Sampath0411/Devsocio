@@ -21,9 +21,9 @@ export const STACK_COLORS = {
 }
 
 export const DEV_LEVELS = {
-  Beginner: { color: '#00E5FF' },
-  Builder: { color: '#6C63FF' },
-  Senior: { color: '#00C896' },
+  Beginner: { color: '#439a86' },
+  Builder: { color: '#007991' },
+  Senior: { color: '#439a86' },
   Founder: { color: '#FFB800' },
 }
 
@@ -35,7 +35,7 @@ export const CURRENT_USER = {
   username: 'you_dev',
   displayName: 'You',
   bio: 'Building things on DevSocio. Frontend-leaning full-stack dev.',
-  avatar: av('youdev', '6c63ff'),
+  avatar: av('youdev', '007991'),
   devLevel: 'Builder',
   techStack: ['React', 'TypeScript', 'Node', 'Tailwind'],
   credits: 380,
@@ -53,7 +53,7 @@ export const USERS = [
     username: 'arjun_builds',
     displayName: 'Arjun',
     bio: 'First-year CSE • learning React • shipping ugly things proudly 🌱',
-    avatar: av('arjun', '00e5ff'),
+    avatar: av('arjun', '439a86'),
     devLevel: 'Beginner',
     techStack: ['React', 'JavaScript'],
     followersCount: 42,
@@ -294,10 +294,10 @@ export const EARN_RULES = [
 
 // `icon` maps to a key in TYPE_ICONS (src/components/postTypes.js).
 export const POST_TYPES = [
-  { type: 'Code Snippet', icon: 'Code2', tint: '#6C63FF', ai: 'AI explains the code in 1 line' },
-  { type: 'Project Showcase', icon: 'ImageIcon', tint: '#00E5FF', ai: 'AI rates the project concept' },
+  { type: 'Code Snippet', icon: 'Code2', tint: '#007991', ai: 'AI explains the code in 1 line' },
+  { type: 'Project Showcase', icon: 'ImageIcon', tint: '#439a86', ai: 'AI rates the project concept' },
   { type: 'Idea Post', icon: 'Lightbulb', tint: '#FFB800', ai: 'AI gives market score + feedback' },
   { type: 'Dev Meme', icon: 'Smile', tint: '#FF4C4C', ai: 'AI detects if it’s actually funny' },
-  { type: 'Question / Help', icon: 'HelpCircle', tint: '#00C896', ai: 'AI suggests a first answer' },
+  { type: 'Question / Help', icon: 'HelpCircle', tint: '#439a86', ai: 'AI suggests a first answer' },
   { type: 'Opinion / Take', icon: 'Flame', tint: '#FF7043', ai: 'AI finds counter-arguments' },
 ]

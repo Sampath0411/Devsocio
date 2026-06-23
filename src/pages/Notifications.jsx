@@ -8,10 +8,10 @@ import { Heart, UserPlus, Handshake, MessageCircle, Coins, Bell, AtSign } from '
 
 const ICON = {
   like: { Icon: Heart, color: '#FF4C4C' },
-  follow: { Icon: UserPlus, color: '#6C63FF' },
-  collab: { Icon: Handshake, color: '#00C896' },
-  comment: { Icon: MessageCircle, color: '#00E5FF' },
-  mention: { Icon: AtSign, color: '#00E5FF' },
+  follow: { Icon: UserPlus, color: '#007991' },
+  collab: { Icon: Handshake, color: '#439a86' },
+  comment: { Icon: MessageCircle, color: '#439a86' },
+  mention: { Icon: AtSign, color: '#439a86' },
   credits: { Icon: Coins, color: '#FFB800' },
 }
 

@@ -12,7 +12,7 @@ const PLATFORM_ICON = {
 }
 const PLATFORM_COLOR = {
   github: '#FFFFFF', linkedin: '#0A66C2', twitter: '#1DA1F2',
-  instagram: '#E1306C', youtube: '#FF0000', devto: '#8888AA', portfolio: '#00E5FF', link: '#00E5FF',
+  instagram: '#E1306C', youtube: '#FF0000', devto: '#8888AA', portfolio: '#439a86', link: '#439a86',
 }
 
 export function SocialLinks({ links }) {
@@ -22,7 +22,7 @@ export function SocialLinks({ links }) {
     <div className="mt-3 flex flex-wrap items-center gap-2">
       {entries.map((l) => {
         const Icon = PLATFORM_ICON[l.platform] || Link2
-        const color = PLATFORM_COLOR[l.platform] || '#00E5FF'
+        const color = PLATFORM_COLOR[l.platform] || '#439a86'
         return (
           <a key={l.platform + l.url} href={l.url} target="_blank" rel="noreferrer"
             className="pill border border-border hover:border-primary/50" style={{ color }}
@@ -39,7 +39,7 @@ export function SocialLinks({ links }) {
 export function VerifiedTick({ size = 16 }) {
   return (
     <span title="Verified" className="inline-grid place-items-center text-accent align-middle">
-      <BadgeCheck size={size} fill="currentColor" className="text-accent" stroke="#0D0D0D" strokeWidth={2.2} />
+      <BadgeCheck size={size} fill="currentColor" className="text-accent" stroke="#0b1020" strokeWidth={2.2} />
     </span>
   )
 }
@@ -269,9 +269,9 @@ export function EmptyState({ icon: Icon, title, cta, onCta }) {
 // Decorative gradient block used as stand-in for uploaded images.
 export function GradientBlock({ variant = 'gradient-sky', label }) {
   const gradients = {
-    'gradient-sky': 'linear-gradient(135deg,#6C63FF,#00E5FF)',
+    'gradient-sky': 'linear-gradient(135deg,#007991,#439a86)',
     'gradient-meme': 'linear-gradient(135deg,#FF4C4C,#FFB800)',
-    'gradient-default': 'linear-gradient(135deg,#16161E,#2A2A3D)',
+    'gradient-default': 'linear-gradient(135deg,#141d33,#2a3a5c)',
   }
   return (
     <div
