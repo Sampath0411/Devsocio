@@ -22,7 +22,7 @@ class RepostSnapshot {
         type: (m['type'] ?? '') as String,
         content: (m['content'] ?? '') as String,
         author:
-            m['author'] == null ? null : AuthorRef.fromMap(Map<String, dynamic>.from(m['author'] as Map)),
+            m['author'] is Map ? AuthorRef.fromMap(Map<String, dynamic>.from(m['author'])) : null,
         imageUrl: m['imageUrl'] as String?,
       );
 }
@@ -65,15 +65,15 @@ class Post {
         content: (m['content'] ?? '') as String,
         authorUid: (m['authorUid'] ?? '') as String,
         author: AuthorRef.fromMap(
-            m['author'] == null ? null : Map<String, dynamic>.from(m['author'] as Map)),
+            m['author'] is Map ? Map<String, dynamic>.from(m['author']) : null),
         imageUrl: m['imageUrl'] as String?,
         tags: List<String>.from((m['tags'] ?? const []) as List),
         hashtags: List<String>.from((m['hashtags'] ?? const []) as List),
         likes: ((m['likes'] ?? 0) as num).toInt(),
         commentsCount: ((m['commentsCount'] ?? 0) as num).toInt(),
-        repostOf: m['repostOf'] == null
-            ? null
-            : RepostSnapshot.fromMap(Map<String, dynamic>.from(m['repostOf'] as Map)),
+        repostOf: m['repostOf'] is Map
+            ? RepostSnapshot.fromMap(Map<String, dynamic>.from(m['repostOf']))
+            : null,
         createdAt: m['createdAt'],
       );
 }
@@ -104,7 +104,7 @@ class Comment {
         id: id,
         authorUid: (m['authorUid'] ?? '') as String,
         author: AuthorRef.fromMap(
-            m['author'] == null ? null : Map<String, dynamic>.from(m['author'] as Map)),
+            m['author'] is Map ? Map<String, dynamic>.from(m['author']) : null),
         content: (m['content'] ?? '') as String,
         likesCount: ((m['likesCount'] ?? 0) as num).toInt(),
         parentId: m['parentId'] as String?,

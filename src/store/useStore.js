@@ -84,12 +84,30 @@ export const useStore = create((set, get) => ({
   setFollowing: (following) => set({ following }),
 
   // Like a post — optimistic flip, write-through, notify the author.
+  // Debounced via a pending map to prevent race conditions on rapid double-clicks.
+  _pendingLikes: {},
   toggleLike: (postId, authorUid) => {
     const u = get().firebaseUser
-    const next = !get().likes[postId]
-    set((s) => ({ likes: { ...s.likes, [postId]: next } }))
     if (!u) return
-    setPostLike(postId, u.uid, next).catch(() => {})
+    // Prevent concurrent calls on the same post
+    const pending = get()._pendingLikes
+    if (pending[postId]) return
+    pending[postId] = true
+    set({ _pendingLikes: { ...pending } })
+    const next = !get().likes[postId]
+    set((s) => ({
+      likes: { ...s.likes, [postId]: next },
+    }))
+    setPostLike(postId, u.uid, next)
+      .catch(() => {
+        // revert on failure
+        set((s) => ({ likes: { ...s.likes, [postId]: !next } }))
+      })
+      .finally(() => {
+        const p = { ...get()._pendingLikes }
+        delete p[postId]
+        set({ _pendingLikes: p })
+      })
     if (next && authorUid && authorUid !== u.uid) {
       pushNotification(authorUid, {
         type: 'like',

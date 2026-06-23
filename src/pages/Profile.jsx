@@ -87,8 +87,7 @@ export default function Profile() {
   const profile =
     (me?.username === username ? me : null) ||
     users.find((u) => u.username === username) ||
-    fetched ||
-    me
+    fetched
 
   useEffect(() => {
     let alive = true

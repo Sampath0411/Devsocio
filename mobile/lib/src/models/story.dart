@@ -29,7 +29,7 @@ class Story {
         storyId: id,
         authorUid: (m['authorUid'] ?? '') as String,
         author: AuthorRef.fromMap(
-            m['author'] == null ? null : Map<String, dynamic>.from(m['author'] as Map)),
+            m['author'] is Map ? Map<String, dynamic>.from(m['author']) : null),
         imageUrl: m['imageUrl'] as String?,
         content: m['content'] as String?,
         reactions: Map<String, dynamic>.from((m['reactions'] ?? const {}) as Map),

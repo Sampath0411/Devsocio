@@ -108,8 +108,8 @@ export default function PostCard({ post }) {
     >
       {/* header */}
       <div className="flex items-center gap-3">
-        <Link to={`/profile/${post.author.username}`}>
-          <Avatar src={post.author.avatar} alt={post.author.displayName} size={44} founder={authorFounder} />
+        <Link to={`/profile/${post.author?.username}`}>
+          <Avatar src={post.author?.avatar} alt={post.author?.displayName} size={44} founder={authorFounder} />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

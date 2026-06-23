@@ -36,7 +36,7 @@ class Idea {
         description: (m['description'] ?? '') as String,
         authorUid: (m['authorUid'] ?? '') as String,
         author: AuthorRef.fromMap(
-            m['author'] == null ? null : Map<String, dynamic>.from(m['author'] as Map)),
+            m['author'] is Map ? Map<String, dynamic>.from(m['author']) : null),
         invested: ((m['invested'] ?? 0) as num).toInt(),
         comments: ((m['comments'] ?? 0) as num).toInt(),
         aiScore: m['aiScore'] == null ? null : (m['aiScore'] as num).toDouble(),

@@ -17,17 +17,18 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  bool _didMark = false;
+
   @override
   void initState() {
     super.initState();
-    // Mark all read shortly after the screen opens (mirrors web behaviour).
-    WidgetsBinding.instance.addPostFrameCallback((_) => _markRead());
   }
 
-  void _markRead() {
+  void _markRead(List<AppNotification> items) {
+    if (_didMark || items.isEmpty) return;
     final me = ref.read(currentUserProvider).value;
-    final items = ref.read(notificationsProvider).value;
-    if (me != null && items != null) {
+    if (me != null) {
+      _didMark = true;
       ref.read(socialRepositoryProvider).markAllRead(me.uid, items);
     }
   }
@@ -59,6 +60,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         return AppColors.success;
       case 'credits':
         return AppColors.warning;
+      case 'follow':
+        return AppColors.accent;
+      case 'comment':
+        return AppColors.primary;
+      case 'mention':
+        return AppColors.orange;
       default:
         return AppColors.primary;
     }
@@ -78,27 +85,67 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget build(BuildContext context) {
     final notifsAsync = ref.watch(notificationsProvider);
 
+    // mark read once data has arrived
+    if (notifsAsync.hasValue) {
+      _markRead(notifsAsync.value!);
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.accent],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.notifications_outlined,
+                  color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text('Activity'),
+          ],
+        ),
+      ),
       body: notifsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (notifs) {
           if (notifs.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(40),
+                padding: const EdgeInsets.all(40),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.notifications_none,
-                        size: 56, color: AppColors.primary),
-                    SizedBox(height: 16),
-                    Text('No activity yet',
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primary, AppColors.accent],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.notifications_none,
+                          color: Colors.white, size: 40),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('No activity yet',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.w700)),
-                    SizedBox(height: 8),
-                    Text('Likes, follows, comments and collabs show up here.',
+                    const SizedBox(height: 8),
+                    Text(
+                        'Likes, follows, comments and collabs show up here.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.textMuted)),
                   ],
@@ -110,56 +157,73 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             itemCount: notifs.length,
             itemBuilder: (_, i) {
               final n = notifs[i];
-              return ListTile(
-                onTap: () => _onTap(n),
-                tileColor:
-                    n.read ? null : AppColors.primary.withValues(alpha: 0.06),
-                leading: Stack(
-                  children: [
-                    Avatar(url: n.actor.avatar, size: 44),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: _colorFor(n.type),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.bg, width: 2),
-                        ),
-                        child: Icon(_iconFor(n.type),
-                            size: 11, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-                title: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                        color: AppColors.textPrimary, fontSize: 14),
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                color: n.read
+                    ? Colors.transparent
+                    : AppColors.primary.withValues(alpha: 0.04),
+                child: ListTile(
+                  onTap: () => _onTap(n),
+                  leading: Stack(
                     children: [
-                      TextSpan(
-                          text: n.actor.displayName.isEmpty
-                              ? 'Someone '
-                              : '${n.actor.displayName} ',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600)),
-                      TextSpan(text: n.text),
+                      Avatar(url: n.actor.avatar, size: 44),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: _colorFor(n.type),
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: AppColors.bg, width: 2.5),
+                          ),
+                          child: Icon(_iconFor(n.type),
+                              size: 11, color: Colors.white),
+                        ),
+                      ),
                     ],
                   ),
+                  title: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          color: AppColors.textPrimary, fontSize: 14),
+                      children: [
+                        TextSpan(
+                            text: n.actor.displayName.isEmpty
+                                ? 'Someone '
+                                : '${n.actor.displayName} ',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600)),
+                        TextSpan(text: n.text),
+                      ],
+                    ),
+                  ),
+                  subtitle: n.createdAtDate == null
+                      ? null
+                      : Text(timeago.format(n.createdAtDate!),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textMuted)),
+                  trailing: n.read
+                      ? null
+                      : Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppColors.accent, AppColors.primary],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.accent
+                                    .withValues(alpha: 0.5),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
-                subtitle: n.createdAtDate == null
-                    ? null
-                    : Text(timeago.format(n.createdAtDate!),
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textMuted)),
-                trailing: n.read
-                    ? null
-                    : Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                            color: AppColors.accent, shape: BoxShape.circle)),
               );
             },
           );

@@ -42,7 +42,7 @@ class SocialRepository {
       'read': false,
       ...notif,
       'createdAt': FieldValue.serverTimestamp(),
-    }).catchError((_) => throw Exception());
+    }).then((_) {}).catchError((_) {});
   }
 
   Future<void> markAllRead(String uid, List<AppNotification> items) async {
@@ -192,11 +192,17 @@ final unreadCountProvider = StreamProvider<int>((ref) {
   return ref.watch(socialRepositoryProvider).watchUnreadCount(auth.uid);
 });
 
-final ideasProvider = StreamProvider<List<Idea>>(
-    (ref) => ref.watch(socialRepositoryProvider).watchIdeas());
+final ideasProvider = StreamProvider<List<Idea>>((ref) {
+  final auth = ref.watch(authStateProvider).value;
+  if (auth == null) return Stream.value(const []);
+  return ref.watch(socialRepositoryProvider).watchIdeas();
+});
 
-final storiesProvider = StreamProvider<List<Story>>(
-    (ref) => ref.watch(socialRepositoryProvider).watchStories());
+final storiesProvider = StreamProvider<List<Story>>((ref) {
+  final auth = ref.watch(authStateProvider).value;
+  if (auth == null) return Stream.value(const []);
+  return ref.watch(socialRepositoryProvider).watchStories();
+});
 
 final creditLogProvider = StreamProvider<List<CreditTx>>((ref) {
   final auth = ref.watch(authStateProvider).value;

@@ -18,6 +18,13 @@ final profileByUsernameProvider =
     FutureProvider.family<AppUser?, String>((ref, username) =>
         ref.watch(userRepositoryProvider).fetchByUsername(username));
 
+/// Live stream for a user's profile (avoids creating new Firestore listeners on every rebuild).
+final liveProfileProvider =
+    Provider.family<Stream<AppUser?>, String>((ref, uid) {
+  // Keep the stream reference alive per uid via the provider lifecycle
+  return ref.watch(userRepositoryProvider).watchProfile(uid);
+});
+
 class ProfileScreen extends ConsumerWidget {
   final String username;
   const ProfileScreen({super.key, required this.username});
@@ -27,7 +34,22 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(profileByUsernameProvider(username));
 
     return Scaffold(
-      appBar: AppBar(title: Text('@$username')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: AppColors.gradientProfile,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.person, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text('@$username'),
+          ],
+        ),
+      ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -37,8 +59,7 @@ class ProfileScreen extends ConsumerWidget {
                 child: Text('User not found.',
                     style: TextStyle(color: AppColors.textMuted)));
           }
-          // Watch the live doc so follower counts update in real time.
-          final live = ref.watch(userRepositoryProvider).watchProfile(user.uid);
+          final live = ref.watch(liveProfileProvider(user.uid));
           return StreamBuilder<AppUser?>(
             stream: live,
             initialData: user,
@@ -51,27 +72,69 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileBody extends ConsumerWidget {
+class _ProfileBody extends ConsumerStatefulWidget {
   final AppUser user;
   const _ProfileBody({required this.user});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProfileBody> createState() => _ProfileBodyState();
+}
+
+class _ProfileBodyState extends ConsumerState<_ProfileBody> {
+  String? _reconciledFor;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reconcile());
+  }
+
+  void _reconcile() {
+    final uid = widget.user.uid;
+    if (uid.isEmpty || _reconciledFor == uid) return;
+    _reconciledFor = uid;
+    final me = ref.read(currentUserProvider).value;
+    ref
+        .read(userRepositoryProvider)
+        .reconcileFollowCounts(uid, myUid: me?.uid);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
     final me = ref.watch(currentUserProvider).value;
     final following = ref.watch(myFollowingProvider).value ?? const {};
     final isMe = me?.uid == user.uid;
     final isFollowing = following.contains(user.uid);
     final postsAsync = ref.watch(userPostsProvider(user.uid));
     final ideasAsync = ref.watch(ideasProvider);
-    final ghUsername = (user.links['github'] as String?)?.split('/').last ?? '';
+    final ghUsername =
+        (user.links['github'] as String?)?.split('/').last ?? '';
 
     return DefaultTabController(
       length: 2,
       child: ListView(
         padding: const EdgeInsets.only(bottom: 40),
         children: [
-          Padding(
+          // Profile header card with gradient
+          Container(
+            margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.profilePrimary.withValues(alpha: 0.15),
+                  AppColors.profileSecondary.withValues(alpha: 0.05),
+                  AppColors.surface,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.profilePrimary.withValues(alpha: 0.2),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -125,12 +188,22 @@ class _ProfileBody extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceAlt,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.profilePrimary.withValues(alpha: 0.15),
+                                AppColors.profileSecondary.withValues(alpha: 0.08),
+                              ],
+                            ),
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.profilePrimary
+                                  .withValues(alpha: 0.2),
+                            ),
                           ),
                           child: Text(t,
                               style: const TextStyle(
-                                  fontSize: 12, color: AppColors.accent)),
+                                  fontSize: 12,
+                                  color: AppColors.profilePrimary)),
                         ),
                     ],
                   ),
@@ -145,7 +218,8 @@ class _ProfileBody extends ConsumerWidget {
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             icon: Icon(_linkIcon(entry.key),
-                                size: 20, color: AppColors.textMuted),
+                                size: 20,
+                                color: AppColors.profilePrimary),
                             onPressed: () => _open(entry.value as String),
                           ),
                     ],
@@ -160,14 +234,16 @@ class _ProfileBody extends ConsumerWidget {
               ],
             ),
           ),
-          if (ghUsername.isNotEmpty) _GithubShowcase(username: ghUsername),
+          if (ghUsername.isNotEmpty)
+            _GithubShowcase(username: ghUsername),
           const TabBar(
-            labelColor: AppColors.primary,
+            labelColor: AppColors.profilePrimary,
             unselectedLabelColor: AppColors.textMuted,
-            indicatorColor: AppColors.primary,
+            indicatorColor: AppColors.profilePrimary,
+            indicatorWeight: 3,
+            labelStyle: TextStyle(fontWeight: FontWeight.w600),
             tabs: [Tab(text: 'Posts'), Tab(text: 'Ideas')],
           ),
-          // Tab content (height-bounded via a fixed-ish region).
           SizedBox(
             height: 600,
             child: TabBarView(
@@ -196,13 +272,31 @@ class _ProfileBody extends ConsumerWidget {
                         : ListView(
                             children: mine
                                 .map((i) => ListTile(
-                                      leading: const Icon(Icons.lightbulb,
-                                          color: AppColors.warning),
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          gradient: AppColors.gradientIdeas,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                            Icons.lightbulb,
+                                            color: Colors.black87,
+                                            size: 18),
+                                      ),
                                       title: Text(i.description,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis),
-                                      subtitle:
+                                      subtitle: Row(
+                                        children: [
+                                          Icon(Icons.trending_up,
+                                              size: 14,
+                                              color:
+                                                  AppColors.ideasPrimary),
+                                          const SizedBox(width: 4),
                                           Text('${i.invested} invested'),
+                                        ],
+                                      ),
                                     ))
                                 .toList());
                   },
@@ -223,8 +317,13 @@ class _ProfileBody extends ConsumerWidget {
           child: Column(
             children: [
               Text('${value < 0 ? 0 : value}',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: onTap != null
+                        ? AppColors.profilePrimary
+                        : AppColors.textPrimary,
+                  )),
               Text(label,
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.textMuted)),
@@ -250,8 +349,11 @@ class _ProfileBody extends ConsumerWidget {
   }
 
   Future<void> _open(String url) async {
-    final uri = Uri.tryParse(url.startsWith('http') ? url : 'https://$url');
-    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final uri =
+        Uri.tryParse(url.startsWith('http') ? url : 'https://$url');
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
@@ -278,7 +380,9 @@ class _ActionRow extends ConsumerWidget {
               label: const Text('Edit profile'),
               style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.border)),
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
             ),
           ),
           const SizedBox(width: 8),
@@ -286,7 +390,9 @@ class _ActionRow extends ConsumerWidget {
             onPressed: () => context.push('/settings'),
             style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.border)),
+                side: const BorderSide(color: AppColors.border),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
             child: const Icon(Icons.settings, size: 18),
           ),
         ],
@@ -303,7 +409,9 @@ class _ActionRow extends ConsumerWidget {
                   .read(userRepositoryProvider)
                   .setFollow(m.uid, user.uid, !isFollowing);
               if (!isFollowing) {
-                ref.read(socialRepositoryProvider).pushNotification(user.uid, {
+                ref
+                    .read(socialRepositoryProvider)
+                    .pushNotification(user.uid, {
                   'type': 'follow',
                   'actorUid': m.uid,
                   'actor': m.asAuthor.toMap(),
@@ -312,8 +420,11 @@ class _ActionRow extends ConsumerWidget {
               }
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isFollowing ? AppColors.surfaceAlt : AppColors.primary),
+                backgroundColor: isFollowing
+                    ? AppColors.surfaceAlt
+                    : AppColors.profilePrimary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
             child: Text(isFollowing ? 'Following' : 'Follow'),
           ),
         ),
@@ -325,7 +436,9 @@ class _ActionRow extends ConsumerWidget {
             label: const Text('Message'),
             style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.border)),
+                side: const BorderSide(color: AppColors.border),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
           ),
         ),
       ],
@@ -350,39 +463,59 @@ class _GithubShowcase extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
-                  Icon(Icons.code, size: 16, color: AppColors.textMuted),
-                  SizedBox(width: 6),
-                  Text('Featured repos',
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.profilePrimary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.code,
+                        size: 16, color: AppColors.profilePrimary),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Featured repos',
                       style: TextStyle(fontWeight: FontWeight.w700)),
                 ],
               ),
               const SizedBox(height: 8),
               ...repos.map((r) => Card(
-                    child: ListTile(
-                      title: Text(r.name,
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                          r.description.isEmpty ? r.language : r.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star,
-                              size: 14, color: AppColors.warning),
-                          const SizedBox(width: 3),
-                          Text('${r.stars}'),
-                        ],
+                    margin: const EdgeInsets.only(bottom: 6),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.profilePrimary
+                              .withValues(alpha: 0.1),
+                        ),
                       ),
-                      onTap: () async {
-                        final uri = Uri.tryParse(r.htmlUrl);
-                        if (uri != null) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
-                        }
-                      },
+                      child: ListTile(
+                        title: Text(r.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                            r.description.isEmpty
+                                ? r.language
+                                : r.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star,
+                                size: 14, color: AppColors.warning),
+                            const SizedBox(width: 3),
+                            Text('${r.stars}'),
+                          ],
+                        ),
+                        onTap: () async {
+                          final uri = Uri.tryParse(r.htmlUrl);
+                          if (uri != null) {
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
                     ),
                   )),
             ],
@@ -400,6 +533,14 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) => Center(
       child: Padding(
           padding: const EdgeInsets.all(40),
-          child: Text(text,
-              style: const TextStyle(color: AppColors.textMuted))));
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.inbox_outlined,
+                  size: 40, color: AppColors.profilePrimary),
+              const SizedBox(height: 12),
+              Text(text,
+                  style: const TextStyle(color: AppColors.textMuted)),
+            ],
+          )));
 }

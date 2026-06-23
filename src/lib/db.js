@@ -205,8 +205,13 @@ export function subscribeMyLikes(uid, onData) {
       (snap) => {
         const map = {}
         snap.forEach((d) => {
-          const pid = d.ref.parent.parent?.id
-          if (pid) map[pid] = true
+          // d.ref.path = posts/{postId}/likes/{uid}
+          // d.ref.parent = likes subcollection, d.ref.parent.parent = post doc
+          const parent = d.ref.parent.parent
+          // Only include entries where the grandparent is a post in the posts collection
+          if (parent && parent.parent?.id === 'posts') {
+            map[parent.id] = true
+          }
         })
         onData(map)
       },
@@ -345,8 +350,19 @@ export function subscribeMyCommentLikes(postId, uid, onData) {
       (snap) => {
         const map = {}
         snap.forEach((d) => {
-          const parent = d.ref.parent.parent
-          if (parent?.parent?.parent?.id === postId) map[parent.id] = true
+          // d.ref.path = posts/{postId}/comments/{commentId}/likes/{uid}
+          // d.ref.parent = likes subcollection
+          // d.ref.parent.parent = comment doc
+          // d.ref.parent.parent.parent = comments subcollection
+          // d.ref.parent.parent.parent.parent = post doc
+          const commentDoc = d.ref.parent.parent
+          const commentsCol = commentDoc?.parent
+          const postDoc = commentsCol?.parent
+          // Only match comment likes (where grandparent of like is a comment doc
+          // and the comment doc's parent collection is 'comments' whose parent is the post)
+          if (postDoc && postDoc.id === postId && commentsCol?.id === 'comments') {
+            map[commentDoc.id] = true
+          }
         })
         onData(map)
       },
@@ -608,7 +624,10 @@ export async function deletePost(postId) {
   const authorUid = snap?.exists() ? snap.data().authorUid : null
   await deleteDoc(doc(db, 'posts', postId))
   if (authorUid) {
-    await updateDoc(doc(db, 'users', authorUid), { postsCount: increment(-1) }).catch(() => {})
+    // Clamp at 0 so postsCount never goes negative.
+    const userSnap = await getDoc(doc(db, 'users', authorUid)).catch(() => null)
+    const current = userSnap?.data()?.postsCount ?? 0
+    await updateDoc(doc(db, 'users', authorUid), { postsCount: Math.max(0, current - 1) }).catch(() => {})
   }
 }
 

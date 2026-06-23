@@ -1,4 +1,4 @@
-import { Component, useEffect, useState } from 'react'
+import { Component, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -97,6 +97,7 @@ export default function App() {
   } = useStore()
 
   const [showTour, setShowTour] = useState(false)
+  const claimedMilestones = useRef(new Set())
 
   // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {
@@ -109,26 +110,27 @@ export default function App() {
       const { firebaseUser: u } = useStore.getState()
       if (!u) return
       const mine = posts.filter((p) => p.authorUid === u.uid)
+      const set = claimedMilestones.current
       for (const p of mine) {
-        if (p.likes >= 10 && !p.milestone10Paid && !claimedMilestones.has(p.postId + '_10')) {
-          claimedMilestones.add(p.postId + '_10')
+        if (p.likes >= 10 && !p.milestone10Paid && !set.has(p.postId + '_10')) {
+          set.add(p.postId + '_10')
           import('./lib/credits').then(({ claimPostMilestone }) =>
             claimPostMilestone('post_10_likes', p.postId).catch(() => {
-              claimedMilestones.delete(p.postId + '_10')
+              set.delete(p.postId + '_10')
             })
           )
         }
-        if (p.likes >= 50 && !p.milestone50Paid && !claimedMilestones.has(p.postId + '_50')) {
-          claimedMilestones.add(p.postId + '_50')
+        if (p.likes >= 50 && !p.milestone50Paid && !set.has(p.postId + '_50')) {
+          set.add(p.postId + '_50')
           import('./lib/credits').then(({ claimPostMilestone }) =>
             claimPostMilestone('post_50_likes', p.postId).catch(() => {
-              claimedMilestones.delete(p.postId + '_50')
+              set.delete(p.postId + '_50')
             })
           )
         }
       }
     })
-    const unsubUsers = subscribeUsers(setUsers)
+    let unsubUsers = null
     let unsubProfile = null
     let unsubGraph = []
 
@@ -140,6 +142,9 @@ export default function App() {
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       unsubProfile?.()
       unsubProfile = null
+      // Start live users list only once auth is ready — avoids a
+      // permission-denied error for unauthenticated listeners.
+      if (!unsubUsers) unsubUsers = subscribeUsers(setUsers)
       stopGraph()
       stopPresence()
       setFirebaseUser(u)

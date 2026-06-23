@@ -65,6 +65,7 @@ class _CreatePostFormState extends ConsumerState<_CreatePostForm> {
       final url = await ref
           .read(uploadClientProvider)
           .uploadBytes(bytes, picked.name);
+      if (!mounted) return;
       setState(() => _imageUrl.text = url);
       if (mounted) showToast(context, 'Image uploaded.');
     } catch (e) {
@@ -79,6 +80,7 @@ class _CreatePostFormState extends ConsumerState<_CreatePostForm> {
       final r = await ref
           .read(aiClientProvider)
           .analyzePost(_type, _content.text.trim());
+      if (!mounted) return;
       setState(() => _aiPreview = r);
     } catch (_) {
       if (mounted) showToast(context, 'AI unavailable.', error: true);
@@ -143,7 +145,7 @@ class _CreatePostFormState extends ConsumerState<_CreatePostForm> {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Create post', style: AppTheme.brandTitle),
+            Text('Create post', style: AppTheme.brandTitle(22)),
             const SizedBox(height: 16),
             SizedBox(
               height: 40,
