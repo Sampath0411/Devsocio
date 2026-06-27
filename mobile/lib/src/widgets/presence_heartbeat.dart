@@ -19,6 +19,7 @@ class _PresenceHeartbeatState extends ConsumerState<PresenceHeartbeat> {
   Timer? _timer;
 
   bool _healed = false;
+  bool _reconciled = false;
 
   @override
   void initState() {
@@ -36,6 +37,13 @@ class _PresenceHeartbeatState extends ConsumerState<PresenceHeartbeat> {
     if (!_healed) {
       _healed = true;
       repo.healCounters(uid).catchError((_) {});
+    }
+    // One-shot reconciliation of follow counters against the real edges (so the
+    // signed-in user's own counts self-correct even if they never open their
+    // profile — mirrors the web Profile.jsx `heal()` on the logged-in account).
+    if (!_reconciled) {
+      _reconciled = true;
+      repo.reconcileFollowCounts(uid, myUid: uid).catchError((_) {});
     }
   }
 

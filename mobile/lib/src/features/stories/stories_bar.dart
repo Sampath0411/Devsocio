@@ -21,7 +21,6 @@ class StoriesBar extends ConsumerWidget {
     return storiesAsync.maybeWhen(
       orElse: () => const SizedBox(height: 100),
       data: (stories) {
-        // Group by author, preserving newest-first order.
         final byAuthor = <String, List<Story>>{};
         for (final s in stories) {
           byAuthor.putIfAbsent(s.authorUid, () => []).add(s);
@@ -75,7 +74,7 @@ class StoriesBar extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('New story', style: AppTheme.brandTitle),
+            Text('New story', style: AppTheme.brandTitle(22)),
             const SizedBox(height: 4),
             const Text('Disappears in 24 hours',
                 style: TextStyle(color: AppColors.textMuted)),
@@ -91,9 +90,26 @@ class StoriesBar extends ConsumerWidget {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-                child: const Text('Share story'),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: AppColors.gradientBrand,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                  ),
+                  child: const Text('Share story'),
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -145,7 +161,8 @@ class _StoryBubble extends StatelessWidget {
                         : const LinearGradient(
                             colors: [AppColors.primary, AppColors.accent]),
                     border: isAdd
-                        ? Border.all(color: AppColors.border, width: 2)
+                        ? Border.all(
+                            color: AppColors.borderLight, width: 2.5)
                         : null,
                   ),
                   child: Avatar(url: avatar, size: 56),
@@ -156,11 +173,19 @@ class _StoryBubble extends StatelessWidget {
                     bottom: 0,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        gradient: AppColors.gradientBrand,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.bg, width: 2),
+                        border:
+                            Border.all(color: AppColors.bg, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.add, size: 16, color: Colors.white),
+                      child: const Icon(Icons.add,
+                          size: 18, color: Colors.white),
                     ),
                   ),
               ],
@@ -169,7 +194,8 @@ class _StoryBubble extends StatelessWidget {
             Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textMuted)),
           ],
         ),
       ),

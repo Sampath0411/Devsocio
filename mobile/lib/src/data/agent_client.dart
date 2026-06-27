@@ -41,6 +41,13 @@ class AgentClient {
       List<Map<String, String>> messages, AppUser admin) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not signed in');
+
+    // Direct OpenRouter call if key is available
+    if (Env.openRouterKey.isNotEmpty) {
+      return _askDirect(messages, admin);
+    }
+
+    // Fallback to Vercel proxy
     final token = await user.getIdToken();
     final res = await http.post(
       Uri.parse(Env.agentUrl),
@@ -70,6 +77,77 @@ class AgentClient {
           .toList(),
       List<String>.from((data['suggestions'] ?? const []) as List),
     );
+  }
+
+  /// Direct OpenRouter call for admin copilot with tool-use prompting.
+  Future<AgentReply> _askDirect(
+      List<Map<String, String>> messages, AppUser admin) async {
+    final systemPrompt = {
+      'role': 'system',
+      'content':
+          'You are the DevSocio Admin Copilot. You help admins manage the platform. '
+          'You can propose actions like deleting posts, resolving reports, setting user flags, '
+          'and adjusting credits. Respond with JSON containing: '
+          '{"reply":"your message","proposedActions":[{"name":"action_name","args":{...}}], '
+          '"suggestions":["follow-up question 1","follow-up question 2"]}. '
+          'If no action is needed, return an empty proposedActions array. '
+          'Action names: delete_post(postId), resolve_report(reportId,status), '
+          'set_user_flag(uid,field,value), change_credits(uid,delta), '
+          'set_credits(uid,value), resolve_error(errorId).',
+    };
+
+    final allMessages = [systemPrompt, ...messages];
+
+    final res = await http.post(
+      Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Env.openRouterKey}',
+        'HTTP-Referer': 'https://devsocio.vercel.app',
+        'X-Title': 'DevSocio Admin Copilot',
+      },
+      body: jsonEncode({
+        'model': 'deepseek/deepseek-chat-v3-0324:free',
+        'messages': allMessages,
+        'temperature': 0.3,
+        'max_tokens': 800,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Agent request failed (${res.statusCode}): ${res.body}');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final choices = data['choices'] as List?;
+    if (choices == null || choices.isEmpty) throw Exception('Empty agent response');
+
+    final content = choices[0]['message']?['content'] as String? ?? '';
+
+    // Try to parse as JSON
+    try {
+      final parsed = _extractJson(content);
+      return AgentReply(
+        (parsed['reply'] ?? content) as String,
+        ((parsed['proposedActions'] ?? const []) as List)
+            .map((e) => AgentAction.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        List<String>.from((parsed['suggestions'] ?? const []) as List),
+      );
+    } catch (_) {
+      // If not JSON, return as plain text reply
+      return AgentReply(content, const [], const []);
+    }
+  }
+
+  Map<String, dynamic> _extractJson(String text) {
+    final fenced =
+        RegExp(r'```(?:json)?\s*([\s\S]*?)```', caseSensitive: false)
+            .firstMatch(text);
+    final candidate = (fenced != null ? fenced.group(1)! : text).trim();
+    final start = candidate.indexOf(RegExp(r'[\[{]'));
+    if (start == -1) throw Exception('No JSON found');
+    return jsonDecode(candidate.substring(start)) as Map<String, dynamic>;
   }
 
   String describe(AgentAction a) {

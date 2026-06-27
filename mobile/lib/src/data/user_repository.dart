@@ -64,6 +64,39 @@ class UserRepository {
     if (fix.isNotEmpty) await _users.doc(uid).update(fix).catchError((_) {});
   }
 
+  /// Reconcile the denormalised follower/following counters with the *actual*
+  /// follow edges and write back any drift. Mirrors the web Profile.jsx `heal()`
+  /// (lines 101–142): counters can desync (old pre-clamp code, manual deletes,
+  /// cross-client writes) so the profile badge shows 0 while the followers list
+  /// shows real people. Counting the edges is the source of truth.
+  ///
+  /// Only the profile owner may write their `followingCount` (Firestore rule);
+  /// `followersCount` may be bumped by any signed-in user, so this is also safe
+  /// to run on other people's profiles to repair their follower count.
+  Future<void> reconcileFollowCounts(String uid, {String? myUid}) async {
+    try {
+      final following = await followingUids(uid);
+      final followers = await followerUids(uid);
+      final snap = await _users.doc(uid).get();
+      final data = snap.data();
+      if (data == null) return;
+      final patch = <String, dynamic>{};
+      // followingCount is owner-writable only.
+      if (myUid == uid && (data['followingCount'] ?? -1) != following.length) {
+        patch['followingCount'] = following.length;
+      }
+      // followersCount is writable by any signed-in user.
+      if ((data['followersCount'] ?? -1) != followers.length) {
+        patch['followersCount'] = followers.length;
+      }
+      if (patch.isNotEmpty) {
+        await _users.doc(uid).update(patch).catchError((_) {});
+      }
+    } catch (_) {
+      // Best-effort: never break the profile view on a heal failure.
+    }
+  }
+
   // --- Followers / following lists ---
   Future<List<String>> followingUids(String uid) async {
     final snap = await _users.doc(uid).collection('following').get();
@@ -147,8 +180,12 @@ final currentUserProvider = StreamProvider<AppUser?>((ref) {
 });
 
 /// All users (Explore, leaderboard, admin, suggestions).
-final usersProvider = StreamProvider<List<AppUser>>(
-    (ref) => ref.watch(userRepositoryProvider).watchUsers());
+final usersProvider = StreamProvider<List<AppUser>>((ref) {
+  final auth = ref.watch(authStateProvider).value;
+  if (auth == null) return Stream.value(const []);
+  return ref.watch(userRepositoryProvider).watchUsers();
+});
+
 
 final myFollowingProvider = StreamProvider<Set<String>>((ref) {
   final auth = ref.watch(authStateProvider).value;

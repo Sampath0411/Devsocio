@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required for Firebase, image loading, and the /api/* calls in release. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required for biometric (fingerprint) authentication. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="DevSocio"
         android:name="${applicationName}"
@@ -25,6 +27,20 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Deep links: devsocio://post/{id} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="devsocio"/>
+            </intent-filter>
+            <!-- Deep links: https://devsocio.app/post/{id} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="devsocio.app"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

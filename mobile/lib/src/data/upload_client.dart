@@ -1,58 +1,34 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-import '../core/env.dart';
-import 'firebase_providers.dart';
-
-/// Uploads images for avatars and posts. Prefers Firebase Storage (same
-/// project, no extra config). Falls back to Cloudinary if configured.
+/// Stores images IN Firestore as compressed base64 `data:` URIs — no Firebase
+/// Storage (needs the paid Blaze plan) and no third-party host. Callers must
+/// pre-shrink with image_picker (maxWidth + imageQuality); this guards the size
+/// so a document never exceeds Firestore's ~1 MB limit.
+///
+/// The resulting `data:image/...;base64,...` string is saved into the same
+/// `avatar` / `imageUrl` fields the web app uses — browsers and AppImage both
+/// render data URIs natively, so images stay in sync across web and mobile.
 class UploadClient {
-  final FirebaseAuth _auth;
-  UploadClient(this._auth);
+  bool get enabled => true; // always available (stored in Firestore)
 
-  /// Upload works via Firebase Storage whenever the user is signed in.
-  bool get enabled => _auth.currentUser != null;
+  /// Max base64 length. Kept well under Firestore's 1,048,576-byte doc cap so
+  /// there's room for the rest of the document's fields.
+  static const _maxB64 = 900 * 1024;
 
-  Future<String> uploadBytes(Uint8List bytes, String filename,
-      {String folder = 'uploads'}) async {
-    // 1) Cloudinary (only if this build configured it) — matches the web app.
-    if (Env.cloudinaryEnabled) {
-      try {
-        return await _cloudinary(bytes, filename);
-      } catch (_) {/* fall through to Firebase Storage */}
-    }
-    // 2) Firebase Storage (default).
-    final uid = _auth.currentUser?.uid ?? 'anon';
+  Future<String> uploadBytes(Uint8List bytes, String filename) async {
     final ext = filename.contains('.')
         ? filename.split('.').last.toLowerCase()
         : 'jpg';
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('$folder/$uid/${DateTime.now().millisecondsSinceEpoch}.$ext');
-    final task = await ref.putData(
-      bytes,
-      SettableMetadata(contentType: 'image/${ext == 'jpg' ? 'jpeg' : ext}'),
-    );
-    return task.ref.getDownloadURL();
-  }
-
-  Future<String> _cloudinary(Uint8List bytes, String filename) async {
-    final uri = Uri.parse(
-        'https://api.cloudinary.com/v1_1/${Env.cloudinaryCloud}/image/upload');
-    final req = http.MultipartRequest('POST', uri)
-      ..fields['upload_preset'] = Env.cloudinaryPreset
-      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
-    final res = await http.Response.fromStream(await req.send());
-    if (res.statusCode != 200) {
-      throw Exception('Cloudinary upload failed (${res.statusCode})');
+    final mime = 'image/${ext == 'jpg' ? 'jpeg' : ext}';
+    final b64 = base64Encode(bytes);
+    if (b64.length > _maxB64) {
+      throw Exception(
+          'Image is too large to store. Pick a smaller or lower-resolution photo.');
     }
-    return (jsonDecode(res.body) as Map<String, dynamic>)['secure_url'] as String;
+    return 'data:$mime;base64,$b64';
   }
 }
 
-final uploadClientProvider =
-    Provider<UploadClient>((ref) => UploadClient(ref.watch(firebaseAuthProvider)));
+final uploadClientProvider = Provider<UploadClient>((ref) => UploadClient());

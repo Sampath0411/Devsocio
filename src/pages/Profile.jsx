@@ -186,7 +186,7 @@ export default function Profile() {
         className="h-36 w-full rounded-card bg-cover bg-center"
         style={profile.coverUrl
           ? { backgroundImage: `url(${profile.coverUrl})` }
-          : { background: profile.banner || 'linear-gradient(120deg,#007991,#439a86,#141d33)' }}
+          : { background: profile.banner || 'linear-gradient(135deg, #14213D 0%, #1A2B4E 50%, #0D1628 100%)' }}
       />
 
       <div className="-mt-10 px-2">
@@ -267,8 +267,8 @@ export default function Profile() {
             <Stat label="Following" value={isMe ? Object.keys(following).length : Math.max(0, profile.followingCount ?? 0)} onClick={() => openFollowsModal('Following')} />
             {isMe && (
               <span className="flex items-center gap-1.5">
-                <Coins size={16} className="text-warning" />
-                <span className="text-lg font-bold text-warning" title={String(profile.credits ?? 0)}>{formatNum(profile.credits)}</span>
+                <Coins size={16} className="text-primary" />
+                <span className="text-lg font-bold text-primary" title={String(profile.credits ?? 0)}>{formatNum(profile.credits)}</span>
                 <span className="text-xs text-text-muted">credits</span>
               </span>
             )}
@@ -328,10 +328,10 @@ export default function Profile() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {list.map((r) => (
                     <a key={r.url || r.id} href={r.url} target="_blank" rel="noreferrer"
-                      className="card transition-colors hover:border-primary/50">
+                      className="card transition-all hover:border-primary/50 hover:-translate-y-0.5">
                       <div className="flex items-center gap-2">
-                        <GithubMark size={15} />
-                        <span className="truncate font-semibold text-accent">{r.name}</span>
+                        <GithubMark size={15} className="text-text-muted" />
+                        <span className="truncate font-bold text-primary">{r.name}</span>
                       </div>
                       {r.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{r.description}</p>}
                       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted">
@@ -391,11 +391,14 @@ function FollowsModal({ open, onClose, type, list, loading, following, toggleFol
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="card relative z-10 w-full max-w-md flex flex-col max-h-[70vh] p-0 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h3 className="font-display text-base font-bold">{type}</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative z-10 w-full max-w-md flex flex-col max-h-[70vh] overflow-hidden rounded-2xl border border-border shadow-2xl"
+        style={{ background: 'linear-gradient(135deg, #14213D, #0D1628)' }}
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
+          <h3 className="font-display text-base font-bold text-white">{type}</h3>
+          <button onClick={onClose} className="text-text-muted hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -410,23 +413,31 @@ function FollowsModal({ open, onClose, type, list, loading, following, toggleFol
             const isFollowing = following[u.uid]
             const isMe = me?.uid === u.uid
             return (
-              <div key={u.uid} className="flex items-center gap-3 rounded-input hover:bg-bg px-3 py-2">
+              <div key={u.uid} className="flex items-center gap-3 rounded-input px-3 py-2 hover:bg-surface-2 transition-colors">
                 <Link to={`/profile/${u.username}`} onClick={onClose} className="shrink-0">
                   <Avatar src={u.avatar} alt={u.displayName} size={36} />
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link to={`/profile/${u.username}`} onClick={onClose} className="block truncate text-sm font-semibold hover:underline">
+                  <Link
+                    to={`/profile/${u.username}`}
+                    onClick={onClose}
+                    className="block truncate text-sm font-bold text-white hover:text-primary transition-colors"
+                  >
                     {u.displayName}
                   </Link>
                   <span className="block truncate text-xs text-text-muted">@{u.username}</span>
                 </div>
                 {!isMe && (
-                  <button onClick={() => {
-                    toggleFollow(u.uid)
-                    if (!isFollowing) toast(`Following ${u.displayName}`, { tone: 'success' })
-                  }}
-                    className={`pill border text-xs ${isFollowing ? 'border-success/50 text-success' : 'border-primary/50 text-primary hover:bg-primary/10'}`}>
-                    {isFollowing ? 'Following' : 'Follow'}
+                  <button
+                    onClick={() => {
+                      toggleFollow(u.uid)
+                      if (!isFollowing) toast(`Following ${u.displayName}`, { tone: 'success' })
+                    }}
+                    className={`pill border text-xs font-bold transition-all ${
+                      isFollowing ? 'border-success/50 text-success bg-success/10' : 'border-primary/50 text-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    {isFollowing ? 'Following' : '+ Follow'}
                   </button>
                 )}
               </div>

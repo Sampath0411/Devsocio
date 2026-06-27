@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import PostCard from '../components/PostCard'
@@ -35,14 +36,23 @@ export default function Feed() {
 
   return (
     <div className="mx-auto w-full max-w-feed">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Your Feed</h1>
-        <button className="btn-primary !py-2.5" onClick={() => setCreateOpen(true)}>
-          <Plus size={18} /> Create
-        </button>
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-white">Your Feed</h1>
+          <p className="text-xs text-text-muted mt-0.5">Powered by your follows &amp; stack</p>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          className="btn-primary !py-2.5"
+          onClick={() => setCreateOpen(true)}
+        >
+          <Plus size={16} /> Create
+        </motion.button>
       </div>
 
-      <div className="card mb-4">
+      <div className="rounded-2xl border border-border mb-5 overflow-hidden"
+        style={{ background: 'rgba(20,33,61,0.5)' }}>
         <Stories />
       </div>
 

@@ -7,7 +7,6 @@ import '../../data/post_repository.dart';
 import '../../data/social_repository.dart';
 import '../../data/user_repository.dart';
 import '../../widgets/post_card.dart';
-import '../../widgets/ui.dart';
 import '../stories/stories_bar.dart';
 import 'create_post_sheet.dart';
 
@@ -23,20 +22,41 @@ class FeedScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const BrandMark(size: 18),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.accent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.terminal, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('DevSocio',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18)),
+            ],
+          ),
+        ),
         actions: [
-          // Activity / notifications — top app bar with unread badge.
           IconButton(
             tooltip: 'Activity',
             icon: unread > 0
                 ? Badge(
-                    label: Text('$unread'),
+                    label: Text('$unread',
+                        style: const TextStyle(fontSize: 10)),
                     child: const Icon(Icons.notifications_outlined),
                   )
                 : const Icon(Icons.notifications_outlined),
             onPressed: () => context.push('/notifications'),
           ),
-          // Credits — new icon (coins).
           IconButton(
             icon: const Icon(Icons.monetization_on_outlined,
                 color: AppColors.warning),
@@ -56,19 +76,32 @@ class FeedScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(feedProvider),
         child: feed.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
-          error: (e, _) => ListView(children: [
+          loading: () => const _FeedShimmer(),
+          error: (_, __) => ListView(children: [
             const SizedBox(height: 120),
-            Center(child: Text('Could not load feed.\n$e',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textMuted))),
+            Center(
+              child: Column(
+                children: [
+                  const Icon(Icons.cloud_off,
+                      size: 48, color: AppColors.textMuted),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Could not load feed.\nPull down to try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
           ]),
           data: (posts) {
             return ListView(
               children: [
                 const StoriesBar(),
-                const Divider(height: 1, color: AppColors.border),
+                Container(
+                  height: 1,
+                  color: AppColors.border.withValues(alpha: 0.5),
+                ),
                 if (posts.isEmpty)
                   const _EmptyFeed()
                 else
@@ -91,10 +124,25 @@ class _EmptyFeed extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 24),
       child: Column(
         children: [
-          const Icon(Icons.dynamic_feed,
-              size: 56, color: AppColors.primary),
-          const SizedBox(height: 16),
-          Text('Your feed is empty', style: AppTheme.brandTitle),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.accent]),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.dynamic_feed, size: 48, color: Colors.white),
+          ),
+          const SizedBox(height: 20),
+          Text('Your feed is empty',
+              style: AppTheme.brandTitle(22)),
           const SizedBox(height: 8),
           const Text(
             'Be the first to post, or follow some developers from Explore.',
@@ -103,6 +151,36 @@ class _EmptyFeed extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Shimmer loading skeleton for the feed.
+class _FeedShimmer extends StatelessWidget {
+  const _FeedShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        const StoriesBar(),
+        const SizedBox(height: 8),
+        for (int i = 0; i < 4; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

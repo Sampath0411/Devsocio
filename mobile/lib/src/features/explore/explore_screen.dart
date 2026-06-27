@@ -18,9 +18,32 @@ class ExploreScreen extends ConsumerStatefulWidget {
   ConsumerState<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends ConsumerState<ExploreScreen> {
+class _ExploreScreenState extends ConsumerState<ExploreScreen>
+    with TickerProviderStateMixin {
   String _query = '';
   _Filter _filter = _Filter.all;
+  late AnimationController _searchController;
+  late Animation<double> _searchAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _searchAnim = CurvedAnimation(
+      parent: _searchController,
+      curve: Curves.easeOut,
+    );
+    _searchController.forward();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   bool _matchesQuery(AppUser u) {
     if (_query.isEmpty) return true;
@@ -63,99 +86,164 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Explore')),
-      body: usersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (users) {
-          var results = users
-              .where((u) => u.uid != me?.uid)
-              .where(_matchesQuery)
-              .where(_matchesFilter)
-              .toList();
-          if (_filter == _Filter.trending) {
-            results.sort((a, b) =>
-                (b.followersCount).compareTo(a.followersCount));
-          }
-
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 90),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                child: TextField(
-                  onChanged: (v) => setState(() => _query = v.trim()),
-                  decoration: const InputDecoration(
-                    hintText: 'Search devs, stacks, #tags',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                ),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: AppColors.gradientExplore,
+                borderRadius: BorderRadius.circular(8),
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  children: [
-                    for (final f in _Filter.values)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(_filterLabel(f)),
-                          selected: _filter == f,
-                          onSelected: (_) => setState(() => _filter = f),
-                          selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.surfaceAlt,
-                          labelStyle: TextStyle(
-                              color: _filter == f
-                                  ? Colors.white
-                                  : AppColors.textPrimary),
+              child: const Icon(Icons.explore, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text('Explore'),
+          ],
+        ),
+      ),
+      body: FadeTransition(
+        opacity: _searchAnim,
+        child: usersAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (users) {
+            var results = users
+                .where((u) => u.uid != me?.uid)
+                .where(_matchesQuery)
+                .where(_matchesFilter)
+                .toList();
+            if (_filter == _Filter.trending) {
+              results.sort(
+                  (a, b) => (b.followersCount).compareTo(a.followersCount));
+            }
+
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 90),
+              children: [
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.explorePrimary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v.trim()),
+                      decoration: InputDecoration(
+                        hintText: 'Search devs, stacks, #tags',
+                        prefixIcon: Icon(Icons.search,
+                            color: AppColors.explorePrimary),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                              color: AppColors.explorePrimary, width: 1.5),
                         ),
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-              if (trending.isNotEmpty && _query.isEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Text('Trending tags',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                // Filter chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
                     children: [
-                      for (final e in trending.take(10))
-                        Chip(
-                          label: Text('${e.key} ${e.value}'),
-                          backgroundColor: AppColors.surfaceAlt,
-                          labelStyle: const TextStyle(
-                              color: AppColors.accent, fontSize: 12),
-                          side: BorderSide.none,
+                      for (final f in _Filter.values)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(_filterLabel(f)),
+                            selected: _filter == f,
+                            onSelected: (_) => setState(() => _filter = f),
+                            selectedColor: AppColors.explorePrimary,
+                            backgroundColor: AppColors.surfaceAlt,
+                            labelStyle: TextStyle(
+                                color: _filter == f
+                                    ? Colors.white
+                                    : AppColors.textPrimary),
+                          ),
                         ),
                     ],
                   ),
                 ),
+                // Trending tags
+                if (trending.isNotEmpty && _query.isEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.trending_up,
+                            size: 16, color: AppColors.explorePrimary),
+                        const SizedBox(width: 6),
+                        const Text('Trending tags',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final e in trending.take(10))
+                          Chip(
+                            label: Text('${e.key} ${e.value}'),
+                            backgroundColor: AppColors.explorePrimary
+                                .withValues(alpha: 0.1),
+                            labelStyle: const TextStyle(
+                                color: AppColors.explorePrimary, fontSize: 12),
+                            side: BorderSide(
+                              color: AppColors.explorePrimary
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                // Users header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.people,
+                          size: 16, color: AppColors.explorePrimary),
+                      const SizedBox(width: 6),
+                      Text(
+                          _query.isEmpty
+                              ? 'Suggested developers'
+                              : 'Results',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+                if (results.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 48, color: AppColors.explorePrimary),
+                          const SizedBox(height: 12),
+                          const Text('No developers found.',
+                              style: TextStyle(color: AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ...results.map((u) => _UserTile(user: u)),
               ],
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text(
-                    _query.isEmpty ? 'Suggested developers' : 'Results',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-              ),
-              if (results.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(
-                      child: Text('No developers found.',
-                          style: TextStyle(color: AppColors.textMuted))),
-                )
-              else
-                ...results.map((u) => _UserTile(user: u)),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -186,49 +274,61 @@ class _UserTile extends ConsumerWidget {
     final following = ref.watch(myFollowingProvider).value ?? const {};
     final isFollowing = following.contains(user.uid);
 
-    return ListTile(
-      onTap: () => context.push('/profile/${user.username}'),
-      leading: Avatar(url: user.avatar, size: 46, online: user.isOnline),
-      title: NameWithBadges.fromUser(user),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('@${user.username} · ${user.devLevel}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-          if (user.techStack.isNotEmpty)
-            Text(user.techStack.take(3).join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: AppColors.accent)),
-        ],
-      ),
-      trailing: me == null || me.uid == user.uid
-          ? null
-          : OutlinedButton(
-              onPressed: () async {
-                await ref
-                    .read(userRepositoryProvider)
-                    .setFollow(me.uid, user.uid, !isFollowing);
-                if (!isFollowing) {
-                  ref
-                      .read(socialRepositoryProvider)
-                      .pushNotification(user.uid, {
-                    'type': 'follow',
-                    'actorUid': me.uid,
-                    'actor': me.asAuthor.toMap(),
-                    'text': 'started following you',
-                  }).catchError((_) {});
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor:
-                    isFollowing ? AppColors.textMuted : AppColors.primary,
-                side: BorderSide(
-                    color: isFollowing ? AppColors.border : AppColors.primary),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: ListTile(
+        onTap: () => context.push('/profile/${user.username}'),
+        leading: Avatar(
+            url: user.avatar, size: 46, online: user.isOnline),
+        title: NameWithBadges.fromUser(user),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('@${user.username} · ${user.devLevel}',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textMuted)),
+            if (user.techStack.isNotEmpty)
+              Text(user.techStack.take(3).join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.explorePrimary.withValues(alpha: 0.8))),
+          ],
+        ),
+        trailing: me == null || me.uid == user.uid
+            ? null
+            : OutlinedButton(
+                onPressed: () async {
+                  await ref
+                      .read(userRepositoryProvider)
+                      .setFollow(me.uid, user.uid, !isFollowing);
+                  if (!isFollowing) {
+                    ref
+                        .read(socialRepositoryProvider)
+                        .pushNotification(user.uid, {
+                      'type': 'follow',
+                      'actorUid': me.uid,
+                      'actor': me.asAuthor.toMap(),
+                      'text': 'started following you',
+                    }).catchError((_) {});
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isFollowing
+                      ? AppColors.textMuted
+                      : AppColors.explorePrimary,
+                  side: BorderSide(
+                      color: isFollowing
+                          ? AppColors.border
+                          : AppColors.explorePrimary),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text(isFollowing ? 'Following' : 'Follow'),
               ),
-              child: Text(isFollowing ? 'Following' : 'Follow'),
-            ),
+      ),
     );
   }
 }

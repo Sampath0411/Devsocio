@@ -22,7 +22,6 @@ class MessageRepository {
       .map((s) {
         final list = s.docs
             .map((d) => Conversation.fromMap(d.id, d.data()))
-            // Hide empty placeholder convos (opened but never messaged).
             .where((c) => c.last.isNotEmpty)
             .toList();
         list.sort((a, b) => (b.updatedAtDate ?? DateTime(0))
@@ -31,18 +30,15 @@ class MessageRepository {
       })
       .handleError((_) {});
 
-  Stream<Conversation?> watchConversation(String cid) async* {
-    yield null;
-    yield* _convos
+  Stream<Conversation?> watchConversation(String cid) {
+    return _convos
         .doc(cid)
         .snapshots()
         .map((d) => d.exists ? Conversation.fromMap(d.id, d.data()!) : null)
-        .handleError((_) {});
-  }
+      .handleError((_) {});
+}
 
   Stream<List<Message>> watchThread(String cid) async* {
-    // Emit empty immediately so a brand-new chat shows the empty state, not a
-    // spinner or a permission error if the conversation doc doesn't exist yet.
     yield <Message>[];
     yield* _convos
         .doc(cid)
@@ -51,12 +47,9 @@ class MessageRepository {
         .limit(100)
         .snapshots()
         .map((s) => s.docs.map((d) => Message.fromMap(d.id, d.data())).toList())
-        .handleError((_) {}); // ignore transient permission-denied on empty convo
+        .handleError((_) {});
   }
 
-  /// Create the conversation doc (members only) so reads succeed under the
-  /// security rules. Called when a chat is opened; harmless if it already
-  /// exists. Empty placeholder convos (no `last`) are hidden from the list.
   Future<void> ensureConversation(String meUid, String otherUid) async {
     final cid = convoId(meUid, otherUid);
     await _convos.doc(cid).set({
@@ -64,21 +57,30 @@ class MessageRepository {
     }, SetOptions(merge: true)).catchError((_) {});
   }
 
-  /// Mark the conversation read by [uid] up to now (powers "Seen" receipts).
-  Future<void> markRead(String cid, String uid) => _convos
-      .doc(cid)
-      .set({'read': {uid: FieldValue.serverTimestamp()}},
-          SetOptions(merge: true))
-      .catchError((_) {});
+  Future<void> markRead(String meUid, String otherUid) {
+    final cid = convoId(meUid, otherUid);
+    return _convos.doc(cid).set({
+      'members': [meUid, otherUid],
+      'read': {meUid: FieldValue.serverTimestamp()},
+    }, SetOptions(merge: true)).catchError((_) {});
+  }
 
-  Future<void> setTyping(String cid, String uid, bool isTyping) => _convos
-      .doc(cid)
-      .set({'typing': {uid: isTyping ? DateTime.now().millisecondsSinceEpoch : 0}},
-          SetOptions(merge: true))
-      .catchError((_) {});
+  Future<void> setTyping(String meUid, String otherUid, bool isTyping) {
+    final cid = convoId(meUid, otherUid);
+    return _convos.doc(cid).set({
+      'members': [meUid, otherUid],
+      'typing': {
+        meUid: isTyping ? DateTime.now().millisecondsSinceEpoch : 0
+      },
+    }, SetOptions(merge: true)).catchError((_) {});
+  }
 
-  Future<String> sendMessage(String meUid, String otherUid, String text,
-      {Map<String, dynamic> meta = const {}}) async {
+  /// Send a message with optional replyTo metadata.
+  Future<String> sendMessage(
+    String meUid, String otherUid, String text, {
+    Map<String, dynamic> meta = const {},
+    Map<String, dynamic>? replyTo,
+  }) async {
     final cid = convoId(meUid, otherUid);
     await _convos.doc(cid).set({
       'members': [meUid, otherUid],
@@ -87,15 +89,80 @@ class MessageRepository {
       'updatedAt': FieldValue.serverTimestamp(),
       ...meta,
     }, SetOptions(merge: true));
-    await _convos.doc(cid).collection('messages').add({
+    final msgData = <String, dynamic>{
       'from': meUid,
       'text': text,
+      'deleted': false,
+      'reactions': {},
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    if (replyTo != null) {
+      msgData['replyTo'] = replyTo;
+    }
+    await _convos.doc(cid).collection('messages').add(msgData);
+    return cid;
+  }
+
+  /// React to a message with an emoji.
+  Future<void> reactToMessage(
+      String cid, String messageId, String uid, String emoji) async {
+    final msgRef =
+        _convos.doc(cid).collection('messages').doc(messageId);
+    // Toggle: if same emoji already set, remove it
+    final snap = await msgRef.get();
+    final reactions =
+        Map<String, dynamic>.from((snap.data()?['reactions'] ?? {}) as Map);
+    if (reactions[uid] == emoji) {
+      reactions.remove(uid);
+    } else {
+      reactions[uid] = emoji;
+    }
+    await msgRef.update({'reactions': reactions}).catchError((_) {});
+  }
+
+  /// Unsend a message (mark as deleted).
+  Future<void> unsendMessage(String cid, String messageId) async {
+    await _convos
+        .doc(cid)
+        .collection('messages')
+        .doc(messageId)
+        .update({'deleted': true, 'text': ''}).catchError((_) {});
+  }
+
+  /// Delete the entire conversation for the current user.
+  Future<void> deleteConversation(String cid) async {
+    // Delete all messages in the conversation
+    final msgs = await _convos.doc(cid).collection('messages').get();
+    final batch = _db.batch();
+    for (final d in msgs.docs) {
+      batch.delete(d.reference);
+    }
+    batch.delete(_convos.doc(cid));
+    await batch.commit().catchError((_) {});
+  }
+
+  /// Forward a message to another user.
+  Future<String> forwardMessage(
+      AppUser me, String targetUid, String text) async {
+    final cid = convoId(me.uid, targetUid);
+    final forwardedText = '➡️ $text';
+    await _convos.doc(cid).set({
+      'members': [me.uid, targetUid],
+      'last': forwardedText,
+      'lastFrom': me.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await _convos.doc(cid).collection('messages').add({
+      'from': me.uid,
+      'text': forwardedText,
+      'deleted': false,
+      'reactions': {},
       'createdAt': FieldValue.serverTimestamp(),
     });
     return cid;
   }
 
-  /// Structured collab request — opens a collab convo + notifies the target.
+  /// Structured collab request.
   Future<String?> requestCollab(AppUser me, AppUser target,
       {String context = ''}) async {
     if (me.uid == target.uid) return null;

@@ -164,9 +164,14 @@ function CommentRow({ c, liked, onLike, onReply, small, users }) {
           <CommentText text={c.text} users={users || []} />
         </p>
         <div className="mt-1 flex gap-3 text-xs text-text-muted">
-          <button onClick={onLike} className={`flex items-center gap-1 ${liked ? 'text-danger' : 'hover:text-danger'}`}>
-            <Heart size={13} fill={liked ? 'currentColor' : 'none'} /> {count > 0 ? count : 'Like'}
-          </button>
+      <button
+        onClick={onLike}
+        className={`flex items-center gap-1 transition-colors ${
+          liked ? 'text-primary' : 'hover:text-primary'
+        }`}
+      >
+        <Heart size={13} fill={liked ? 'currentColor' : 'none'} /> {count > 0 ? count : 'Like'}
+      </button>
           {!small && <button onClick={onReply} className="hover:text-text-primary">Reply</button>}
         </div>
       </div>

@@ -78,7 +78,8 @@ export default function Signup() {
   return (
     <AuthShell title="Join DevSocio" subtitle="Create your developer profile in seconds">
       {ref && (
-        <div className="flex items-center gap-2 rounded-input border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
+        <div className="flex items-center gap-2 rounded-input border border-success/40 px-3 py-2 text-xs text-success"
+          style={{ background: 'rgba(34,197,94,0.07)' }}>
           <Gift size={14} /> Referral <b>{ref}</b> applied — you both get +150 credits!
         </div>
       )}
@@ -109,9 +110,10 @@ export default function Signup() {
           <div className="grid grid-cols-4 gap-1.5">
             {LEVELS.map((l) => (
               <button type="button" key={l} onClick={() => setForm({ ...form, devLevel: l })}
-                className={`rounded-input border px-2 py-2 text-xs font-semibold transition-colors ${
-                  form.devLevel === l ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border text-text-muted hover:border-primary/40'
+                className={`rounded-input border px-2 py-2 text-xs font-bold transition-all ${
+                  form.devLevel === l
+                    ? 'border-primary bg-primary/15 text-primary shadow-glow-sm'
+                    : 'border-border text-text-muted hover:border-primary/40 hover:text-white'
                 }`}>
                 {l}
               </button>

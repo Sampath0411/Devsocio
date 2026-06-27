@@ -15,9 +15,16 @@ const SORTS = ['Newest', 'Most Invested', 'AI Score', 'Most Discussed']
 function ScoreRing({ score }) {
   const pct = (score / 10) * 100
   return (
-    <div className="grid h-14 w-14 place-items-center rounded-full text-sm font-bold"
-      style={{ background: `conic-gradient(#007991 ${pct}%, #2a3a5c ${pct}%)` }}>
-      <span className="grid h-11 w-11 place-items-center rounded-full bg-surface text-accent">{score}</span>
+    <div
+      className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-sm font-bold"
+      style={{ background: `conic-gradient(#FCA311 ${pct}%, #1A2B4E ${pct}%)` }}
+    >
+      <span
+        className="grid h-11 w-11 place-items-center rounded-full text-primary font-extrabold"
+        style={{ background: '#0D1628' }}
+      >
+        {score}
+      </span>
     </div>
   )
 }
@@ -43,7 +50,12 @@ export function IdeaCard({ idea, onInvest, onCollab }) {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card space-y-3">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      className="post-card space-y-3"
+    >
       <div className="flex items-start gap-3">
         <Link to={`/profile/${idea.author?.username}`}>
           <Avatar src={idea.author?.avatar} alt={idea.author?.displayName} size={40} founder={authorFounder} />
@@ -99,13 +111,19 @@ export function IdeaCard({ idea, onInvest, onCollab }) {
         )}
       </div>
 
-      <div className="flex items-center gap-4 border-t border-border pt-3 text-sm text-text-muted">
-        <span className="flex items-center gap-1.5"><Coins size={15} /> {idea.invested || 0}</span>
-        <span className="flex items-center gap-1.5"><MessageCircle size={15} /> {idea.comments || 0}</span>
+      <div className="flex items-center gap-4 border-t border-border pt-3 text-sm">
+        <span className="flex items-center gap-1.5 font-bold text-primary">
+          <Coins size={15} /> {idea.invested || 0}
+        </span>
+        <span className="flex items-center gap-1.5 text-text-muted">
+          <MessageCircle size={15} /> {idea.comments || 0}
+        </span>
         <button onClick={onInvest} className="btn-ghost ml-auto !py-1.5 !px-3 text-xs">
           <Coins size={14} /> Invest 50
         </button>
-        <button onClick={onCollab} className="btn-primary !py-1.5 !px-3 text-xs"><Handshake size={14} /> Collab</button>
+        <button onClick={onCollab} className="btn-primary !py-1.5 !px-3 text-xs">
+          <Handshake size={14} /> Collab
+        </button>
       </div>
     </motion.div>
   )
@@ -204,8 +222,11 @@ export default function Ideas() {
       <div className="mb-4 flex flex-wrap gap-2">
         {SORTS.map((s) => (
           <button key={s} onClick={() => setSort(s)}
-            className={`pill border ${sort === s ? 'border-primary bg-primary/15 text-primary'
-              : 'border-border text-text-muted hover:border-primary/40'}`}>
+            className={`pill border transition-all ${
+              sort === s
+                ? 'border-primary bg-primary/15 text-primary shadow-glow-sm'
+                : 'border-border text-text-muted hover:border-primary/40 hover:text-white'
+            }`}>
             {s}
           </button>
         ))}

@@ -71,95 +71,141 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _form,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const BrandMark(),
-                const SizedBox(height: 32),
-                Text('Welcome back', style: AppTheme.brandTitle),
-                const SizedBox(height: 4),
-                const Text('Log in to your DevSocio account',
-                    style: TextStyle(color: AppColors.textMuted)),
-                const SizedBox(height: 28),
-                TextFormField(
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                      hintText: 'Email', prefixIcon: Icon(Icons.mail_outline)),
-                  validator: (v) =>
-                      (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _password,
-                  obscureText: _obscure,
-                  decoration: InputDecoration(
-                    hintText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft,
+            radius: 1.2,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.2),
+              AppColors.bg,
+              AppColors.bg,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _form,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppBar(
+                    leading: BackButton(
+                        onPressed: () => context.go('/'),
+                        color: AppColors.textPrimary),
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                  ),
+                  const BrandMark(),
+                  const SizedBox(height: 24),
+                  Text('Welcome back', style: AppTheme.brandTitle(24)),
+                  const SizedBox(height: 4),
+                  const Text('Log in to your DevSocio account',
+                      style: TextStyle(color: AppColors.textMuted)),
+                  const SizedBox(height: 28),
+                  TextFormField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                        hintText: 'Email',
+                        prefixIcon: Icon(Icons.mail_outline)),
+                    validator: (v) =>
+                        (v == null || !v.contains('@'))
+                            ? 'Enter a valid email'
+                            : null,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _password,
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () =>
+                            setState(() => _obscure = !_obscure),
+                      ),
                     ),
+                    validator: (v) =>
+                        (v == null || v.isEmpty)
+                            ? 'Enter your password'
+                            : null,
                   ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Enter your password' : null,
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _resetPassword,
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                PrimaryButton(
-                    label: 'Log in', onPressed: _login, loading: _loading),
-                const SizedBox(height: 20),
-                Row(children: const [
-                  Expanded(child: Divider(color: AppColors.border)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or', style: TextStyle(color: AppColors.textMuted)),
-                  ),
-                  Expanded(child: Divider(color: AppColors.border)),
-                ]),
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
-                  onPressed: _loading ? null : _google,
-                  icon: const Icon(Icons.g_mobiledata, size: 28),
-                  label: const Text('Continue with Google'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Don't have an account? ",
-                        style: TextStyle(color: AppColors.textMuted)),
-                    GestureDetector(
-                      onTap: () => context.go('/signup'),
-                      child: const Text('Sign up',
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _resetPassword,
+                      child: Text('Forgot password?',
                           style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600)),
+                              color: AppColors.accent)),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: AppColors.gradientBrand,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: PrimaryButton(
+                        label: 'Log in',
+                        onPressed: _login,
+                        loading: _loading),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(children: const [
+                    Expanded(child: Divider(color: AppColors.border)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or',
+                          style:
+                              TextStyle(color: AppColors.textMuted)),
+                    ),
+                    Expanded(child: Divider(color: AppColors.border)),
+                  ]),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: _loading ? null : _google,
+                    icon: const Icon(Icons.g_mobiledata, size: 28),
+                    label: const Text('Continue with Google'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.borderLight),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Don't have an account? ",
+                          style:
+                              TextStyle(color: AppColors.textMuted)),
+                      GestureDetector(
+                        onTap: () => context.go('/signup'),
+                        child: Text('Sign up',
+                            style: TextStyle(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

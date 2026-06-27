@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
 import 'src/app.dart';
+import 'src/core/notifications.dart';
 import 'src/core/theme.dart';
 
 Future<void> main() async {
@@ -25,6 +26,9 @@ Future<void> main() async {
     runApp(_FatalApp(message: 'Firebase init failed:\n$e'));
     return;
   }
+
+  // Initialize FCM for push notifications (best-effort, don't block startup).
+  initFcm().ignore();
 
   runApp(const ProviderScope(child: DevSocioApp()));
 }

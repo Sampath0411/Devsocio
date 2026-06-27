@@ -50,6 +50,8 @@ export {
   Smile,
   Link2,
   Eye,
+  EyeOff,
+  Lock,
   ShieldAlert,
   Shield,
   Flag,
@@ -61,6 +63,12 @@ export {
   FileText,
   AtSign,
   ArrowRight,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
 } from 'lucide-react'
 
 // ---- Brand marks (lucide dropped brand icons) ----

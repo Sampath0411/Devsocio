@@ -82,7 +82,8 @@ export default function Stories() {
         {groups.map((g) => (
           <button key={g.authorUid} onClick={() => setViewer({ ...g, index: 0 })}
             className="flex w-16 shrink-0 flex-col items-center gap-1">
-            <span className="rounded-full bg-gradient-to-tr from-primary to-accent p-0.5">
+            <span className="rounded-full p-0.5"
+              style={{ background: 'linear-gradient(135deg, #FCA311, #E8920A)' }}>
               <span className="block rounded-full border-2 border-bg">
                 <Avatar src={g.author?.avatar} alt={g.author?.displayName} size={56} />
               </span>
@@ -98,11 +99,16 @@ export default function Stories() {
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center px-4"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setComposing(false)} />
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="card relative z-10 w-full max-w-md space-y-3">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative z-10 w-full max-w-md space-y-3 rounded-2xl border border-border p-5 shadow-2xl"
+              style={{ background: 'linear-gradient(135deg, #14213D, #0D1628)' }}
+            >
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-bold">Share a story</h2>
-                <button onClick={() => setComposing(false)} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
+                <h2 className="font-display text-lg font-bold text-white">Share a story</h2>
+                <button onClick={() => setComposing(false)} className="text-text-muted hover:text-white transition-colors"><X size={18} /></button>
               </div>
               <textarea className="input min-h-[120px] resize-none" placeholder="What are you building right now?"
                 value={draft} onChange={(e) => setDraft(e.target.value)} />
@@ -132,8 +138,8 @@ export default function Stories() {
               </div>
 
               <div onClick={advance}
-                className="flex min-h-[320px] cursor-pointer items-center justify-center rounded-card p-6 text-center text-lg font-medium text-white"
-                style={{ background: 'linear-gradient(135deg,#007991,#439a86)' }}>
+                className="flex min-h-[320px] cursor-pointer items-center justify-center rounded-card p-6 text-center text-lg font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg, #14213D 0%, #FCA311 100%)' }}>
                 {current.text}
               </div>
 

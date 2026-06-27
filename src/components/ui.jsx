@@ -38,8 +38,8 @@ export function SocialLinks({ links }) {
 // ---------- Verified tick (blue) + moderator badge (PRD §5.2 / §7.4) ----------
 export function VerifiedTick({ size = 16 }) {
   return (
-    <span title="Verified" className="inline-grid place-items-center text-accent align-middle">
-      <BadgeCheck size={size} fill="currentColor" className="text-accent" stroke="#0b1020" strokeWidth={2.2} />
+    <span title="Verified" className="inline-grid place-items-center align-middle" style={{ color: '#FCA311' }}>
+      <BadgeCheck size={size} fill="currentColor" stroke="#000000" strokeWidth={2.2} />
     </span>
   )
 }
@@ -125,9 +125,9 @@ export function LevelBadge({ level }) {
 // ---------- AI Generated badge (PRD §4.3) ----------
 export function AIBadge({ children }) {
   return (
-    <span className="pill border border-accent/40 bg-accent/10 text-accent">
+    <span className="pill border border-primary/40 bg-primary/10 text-primary">
       <Sparkles size={11} />
-      {children || 'AI Generated'}
+      {children || 'AI Analysis'}
     </span>
   )
 }
@@ -212,8 +212,8 @@ export function LikeButton({ liked, count, onToggle }) {
   return (
     <button
       onClick={onToggle}
-      className={`group relative flex items-center gap-1.5 transition-colors ${
-        liked ? 'text-danger' : 'text-text-muted hover:text-danger'
+      className={`group relative flex items-center gap-1.5 rounded-input px-2 py-1.5 transition-all ${
+        liked ? 'text-primary' : 'text-text-muted hover:text-primary'
       }`}
       aria-pressed={liked}
       aria-label="Like"
@@ -222,8 +222,8 @@ export function LikeButton({ liked, count, onToggle }) {
         <motion.span
           key={liked ? 'on' : 'off'}
           initial={{ scale: 1 }}
-          animate={liked ? { scale: [1, 1.35, 1] } : { scale: 1 }}
-          transition={{ duration: 0.4 }}
+          animate={liked ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+          transition={{ duration: 0.35 }}
           className="block"
         >
           <Heart size={18} fill={liked ? 'currentColor' : 'none'} />
@@ -233,7 +233,7 @@ export function LikeButton({ liked, count, onToggle }) {
             {[...Array(5)].map((_, i) => (
               <span
                 key={i}
-                className="absolute left-1/2 top-0 animate-float-up text-danger"
+                className="absolute left-1/2 top-0 animate-float-up text-primary"
                 style={{ transform: `translateX(${(i - 2) * 7}px)`, animationDelay: `${i * 40}ms` }}
               >
                 <Heart size={8} fill="currentColor" />
@@ -242,7 +242,7 @@ export function LikeButton({ liked, count, onToggle }) {
           </span>
         )}
       </span>
-      <span className="text-sm tabular-nums">{count}</span>
+      <span className="text-sm tabular-nums font-medium">{count}</span>
     </button>
   )
 }
@@ -250,13 +250,16 @@ export function LikeButton({ liked, count, onToggle }) {
 // ---------- Empty state (PRD §6.7) ----------
 export function EmptyState({ icon: Icon, title, cta, onCta }) {
   return (
-    <div className="card flex flex-col items-center gap-3 py-14 text-center">
+    <div className="flex flex-col items-center gap-3 py-14 text-center">
       {Icon && (
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-bg text-text-muted">
-          <Icon size={22} />
-        </span>
+        <div
+          className="grid h-14 w-14 place-items-center rounded-2xl mb-1"
+          style={{ background: 'rgba(252,163,17,0.08)', border: '1px solid rgba(252,163,17,0.15)' }}
+        >
+          <Icon size={24} className="text-primary" />
+        </div>
       )}
-      <p className="max-w-xs text-sm text-text-muted">{title}</p>
+      <p className="max-w-xs text-sm font-medium text-text-muted">{title}</p>
       {cta && (
         <button className="btn-primary mt-1" onClick={onCta}>
           {cta}
@@ -269,9 +272,9 @@ export function EmptyState({ icon: Icon, title, cta, onCta }) {
 // Decorative gradient block used as stand-in for uploaded images.
 export function GradientBlock({ variant = 'gradient-sky', label }) {
   const gradients = {
-    'gradient-sky': 'linear-gradient(135deg,#007991,#439a86)',
-    'gradient-meme': 'linear-gradient(135deg,#FF4C4C,#FFB800)',
-    'gradient-default': 'linear-gradient(135deg,#141d33,#2a3a5c)',
+    'gradient-sky': 'linear-gradient(135deg, #14213D, #FCA311)',
+    'gradient-meme': 'linear-gradient(135deg, #FCA311, #E8920A)',
+    'gradient-default': 'linear-gradient(135deg, #14213D, #1A2B4E)',
   }
   return (
     <div

@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
+import 'app_image.dart';
 import 'photo_viewer.dart';
 
 class Avatar extends StatelessWidget {
@@ -24,43 +24,26 @@ class Avatar extends StatelessWidget {
     final core = _build(context);
     if (!tapToView || url.isEmpty) return core;
     return GestureDetector(
-      onTap: () => openPhoto(context, url, heroTag: 'avatar-$url'),
+      onTap: () => openPhoto(context, url, heroTag: 'avatar-$url', isAvatar: true),
       child: Hero(tag: 'avatar-$url', child: core),
     );
   }
 
   Widget _build(BuildContext context) {
-    Widget img = ClipOval(
-      child: url.isEmpty
-          ? Container(
-              width: size,
-              height: size,
-              color: AppColors.surfaceAlt,
-              child: Icon(Icons.person, size: size * 0.6, color: AppColors.textMuted),
-            )
-          : CachedNetworkImage(
-              imageUrl: url,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              placeholder: (_, __) =>
-                  Container(width: size, height: size, color: AppColors.surfaceAlt),
-              errorWidget: (_, __, ___) => Container(
-                width: size,
-                height: size,
-                color: AppColors.surfaceAlt,
-                child: Icon(Icons.person,
-                    size: size * 0.6, color: AppColors.textMuted),
-              ),
-            ),
+    Widget img = SmartImage(
+      url: url,
+      width: size,
+      height: size,
+      isAvatar: true,
+      backgroundColor: AppColors.surfaceAlt,
     );
 
     if (founderRing) {
       img = Container(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(2.5),
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(colors: [AppColors.gold, AppColors.warning]),
+          gradient: AppColors.gradientGold,
         ),
         child: img,
       );
@@ -74,17 +57,69 @@ class Avatar extends StatelessWidget {
         Positioned(
           right: 0,
           bottom: 0,
-          child: Container(
-            width: size * 0.28,
-            height: size * 0.28,
-            decoration: BoxDecoration(
-              color: AppColors.success,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.bg, width: 2),
-            ),
-          ),
+          child: _OnlineDot(size: size * 0.28),
         ),
       ],
+    );
+  }
+}
+
+/// Pulsing online indicator dot.
+class _OnlineDot extends StatefulWidget {
+  final double size;
+  const _OnlineDot({required this.size});
+
+  @override
+  State<_OnlineDot> createState() => _OnlineDotState();
+}
+
+class _OnlineDotState extends State<_OnlineDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (_, child) => Transform.scale(
+        scale: _pulse.value,
+        child: child,
+      ),
+      child: Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          color: AppColors.success,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.bg, width: 2.5),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.success.withValues(alpha: 0.5),
+              blurRadius: 4,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

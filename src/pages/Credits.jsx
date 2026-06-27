@@ -87,48 +87,67 @@ export default function Credits() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold">Credits Dashboard</h1>
-        <div className="flex gap-2 text-sm">
-          <button onClick={() => setTab('overview')}
-            className={`rounded-input px-3 py-1.5 transition-colors ${tab === 'overview' ? 'bg-primary text-white' : 'text-text-muted hover:text-text-primary'}`}>
+      <div className="mb-5 flex items-center justify-between">
+        <h1 className="font-display text-xl font-bold text-white">Credits Dashboard</h1>
+        <div className="flex gap-1 rounded-xl border border-border p-1" style={{ background: 'rgba(20,33,61,0.6)' }}>
+          <button
+            onClick={() => setTab('overview')}
+            className={`rounded-input px-4 py-1.5 text-sm font-semibold transition-all ${
+              tab === 'overview' ? 'bg-primary text-black shadow-glow-sm' : 'text-text-muted hover:text-white'
+            }`}>
             Overview
           </button>
-          <button onClick={() => setTab('history')}
-            className={`rounded-input px-3 py-1.5 transition-colors ${tab === 'history' ? 'bg-primary text-white' : 'text-text-muted hover:text-text-primary'}`}>
+          <button
+            onClick={() => setTab('history')}
+            className={`rounded-input px-4 py-1.5 text-sm font-semibold transition-all ${
+              tab === 'history' ? 'bg-primary text-black shadow-glow-sm' : 'text-text-muted hover:text-white'
+            }`}>
             History
           </button>
         </div>
       </div>
 
-      <div className="card mb-5 flex items-center justify-between border-primary/40 bg-gradient-to-br from-primary/10 to-accent/5">
-        <div>
-          <p className="text-sm text-text-muted">Your balance</p>
-          <p className="flex items-center gap-2 font-display text-4xl font-extrabold text-warning">
-            <Coins size={30} /> <span title={String(user?.credits ?? 0)}>{formatNum(user?.credits ?? 0)}</span>
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <button onClick={dailyLogin} className="btn-ghost text-xs"><Plus size={14} /> Daily login (+5)</button>
-          {(user?.loginStreak || 0) > 0 && (
-            <p className="text-center text-xs text-text-muted">
-              🔥 {user.loginStreak}-day streak
-              {user.loginStreak % 7 === 0
-                ? ' — bonus claimed!'
-                : ` — ${7 - (user.loginStreak % 7)} days to streak bonus`}
+      {/* Balance card */}
+      <div
+        className="mb-5 overflow-hidden rounded-2xl border border-primary/25 p-5"
+        style={{ background: 'linear-gradient(135deg, rgba(252,163,17,0.1) 0%, rgba(20,33,61,0.95) 100%)' }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-text-muted">Your balance</p>
+            <p className="flex items-center gap-2 font-display text-5xl font-extrabold text-primary mt-1">
+              <Coins size={34} />
+              <span title={String(user?.credits ?? 0)}>{formatNum(user?.credits ?? 0)}</span>
             </p>
-          )}
+            <p className="mt-1 text-xs text-text-muted">credits available to spend</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={dailyLogin} className="btn-ghost text-sm">
+              <Plus size={14} /> Claim daily (+5)
+            </button>
+            {(user?.loginStreak || 0) > 0 && (
+              <p className="text-right text-xs text-text-muted">
+                🔥 {user.loginStreak}-day streak
+                {user.loginStreak % 7 === 0
+                  ? ' — bonus claimed!'
+                  : ` — ${7 - (user.loginStreak % 7)} to bonus`}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
       {tab === 'history' ? (
         <div className="card">
-          <h2 className="mb-3 font-display text-sm font-bold">Transaction History</h2>
+          <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-white">
+            <span className="h-1 w-4 rounded-full bg-primary" /> Transaction History
+          </h2>
           <div className="space-y-2">
             {log.length === 0
-              ? <p className="py-4 text-center text-sm text-text-muted">No transactions yet.</p>
+              ? <p className="py-6 text-center text-sm text-text-muted">No transactions yet.</p>
               : log.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between rounded-input border border-border px-3 py-2.5 text-sm">
+                <div key={tx.id} className="flex items-center justify-between rounded-input border border-border px-3 py-2.5 text-sm"
+                  style={{ background: 'rgba(13,22,40,0.5)' }}>
                   <span className="text-text-muted">{tx.description}</span>
                   <span className={tx.amount > 0 ? 'font-bold text-success' : 'font-bold text-danger'}>
                     {tx.amount > 0 ? '+' : ''}{tx.amount}
@@ -156,45 +175,69 @@ export default function Credits() {
 
           <div className="grid gap-5 md:grid-cols-2">
             <div className="card">
-              <h2 className="mb-3 font-display text-sm font-bold">Earn Credits</h2>
-              <ul className="space-y-2 text-sm">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold text-white">
+                <span className="h-1 w-4 rounded-full bg-primary" /> Earn Credits
+              </h2>
+              <ul className="space-y-2.5 text-sm">
                 {EARN_RULES.map((r) => (
                   <li key={r.action} className="flex items-center justify-between">
                     <span className="text-text-muted">{r.action}</span>
-                    <span className="font-semibold text-success">+{r.amount}</span>
+                    <span className="font-bold text-primary">+{r.amount}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
             <div className="card">
-              <h2 className="mb-3 flex items-center gap-1.5 font-display text-sm font-bold"><Trophy size={15} /> Weekly Leaderboard</h2>
-              <ol className="space-y-2.5">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold text-white">
+                <Trophy size={14} className="text-primary" /> Weekly Leaderboard
+              </h2>
+              <ol className="space-y-3">
                 {leaderboard.map((row) => (
                   <li key={row.rank} className="flex items-center gap-2 text-sm">
-                    <span className="w-5 font-bold text-text-muted">{row.rank}</span>
+                    <span className={`w-5 text-center text-xs font-bold ${
+                      row.rank <= 3 ? 'text-primary' : 'text-text-muted'
+                    }`}>
+                      {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : row.rank}
+                    </span>
                     <Avatar src={row.user.avatar} alt={row.user.displayName} size={28} />
-                    <span className="flex-1 truncate">{row.user.displayName}</span>
-                    <span className="flex items-center gap-1 text-xs text-warning"><Coins size={12} /> {formatNum(row.credits)}</span>
+                    <span className="flex-1 truncate text-text-secondary">{row.user.displayName}</span>
+                    <span className="flex items-center gap-1 text-xs font-bold text-primary">
+                      <Coins size={12} /> {formatNum(row.credits)}
+                    </span>
                   </li>
                 ))}
               </ol>
             </div>
           </div>
 
-          <h2 className="mb-3 mt-5 font-display text-sm font-bold">Rewards Shop</h2>
+          <h2 className="mb-3 mt-6 flex items-center gap-2 font-display text-sm font-bold text-white">
+            <span className="h-1 w-4 rounded-full bg-primary" /> Rewards Shop
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {REWARDS.map((r) => {
               const Icon = REWARD_ICONS[r.icon] || Coins
               const affordable = (user?.credits ?? 0) >= r.cost
+              const owned = user?.[Object.keys(REWARD_EFFECT[r.id] || {})[0]]
               return (
-                <div key={r.id} className="card flex flex-col">
-                  <span className="grid h-10 w-10 place-items-center rounded-card bg-primary/10 text-primary"><Icon size={20} /></span>
-                  <p className="mt-2 font-semibold">{r.name}</p>
-                  <p className="flex-1 text-xs text-text-muted">{r.desc}</p>
-                  <button onClick={() => redeem(r)} disabled={!affordable}
-                    className={`mt-3 ${affordable ? 'btn-primary' : 'btn-ghost'} w-full justify-center text-xs`}>
-                    <Coins size={14} /> {r.cost}
+                <div key={r.id} className="card flex flex-col group transition-all hover:border-primary/30">
+                  <span
+                    className="grid h-11 w-11 place-items-center rounded-xl"
+                    style={{ background: 'rgba(252,163,17,0.1)', border: '1px solid rgba(252,163,17,0.2)' }}
+                  >
+                    <Icon size={20} className="text-primary" />
+                  </span>
+                  <p className="mt-3 font-bold text-white text-sm">{r.name}</p>
+                  <p className="flex-1 text-xs text-text-muted mt-1">{r.desc}</p>
+                  <button
+                    onClick={() => redeem(r)}
+                    disabled={!affordable || owned}
+                    className={`mt-4 ${
+                      owned ? 'btn-ghost opacity-60 cursor-default' : affordable ? 'btn-primary' : 'btn-ghost'
+                    } w-full justify-center text-xs`}
+                  >
+                    <Coins size={13} />
+                    {owned ? 'Owned' : `${r.cost} credits`}
                   </button>
                 </div>
               )

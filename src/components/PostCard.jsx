@@ -101,10 +101,11 @@ export default function PostCard({ post }) {
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-      className="card space-y-3"
+      whileHover={{ y: -2 }}
+      className="post-card space-y-3"
     >
       {/* header */}
       <div className="flex items-center gap-3">
@@ -114,28 +115,29 @@ export default function PostCard({ post }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Link
-              to={`/profile/${post.author.username}`}
+              to={`/profile/${post.author?.username}`}
               className="flex items-center gap-1 truncate font-semibold hover:underline"
             >
               {authorFounder
-                ? <FounderName>{post.author.displayName}</FounderName>
-                : post.author.displayName}
+                ? <FounderName>{post.author?.displayName}</FounderName>
+                : post.author?.displayName}
               {authorFounder && <Crown size={14} fill="currentColor" className="text-[#FFD66B]" />}
               {authorUser?.verified && <VerifiedTick size={14} />}
             </Link>
             {authorFounder && <FounderBadge />}
-            <span className="truncate text-sm text-text-muted">@{post.author.username}</span>
+            <span className="truncate text-sm text-text-muted">@{post.author?.username}</span>
             {!isMyPost && authorUid && (
-              <button
+              <motion.button
+                whileTap={{ scale: 0.93 }}
                 onClick={onFollow}
-                className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+                className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold transition-all ${
                   isFollowing
                     ? 'border-border text-text-muted hover:border-danger hover:text-danger'
-                    : 'border-primary bg-primary/10 text-primary hover:bg-primary/20'
+                    : 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 shadow-glow-sm'
                 }`}
               >
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
+                {isFollowing ? 'Following' : '+ Follow'}
+              </motion.button>
             )}
             <span className="text-text-muted">·</span>
             <span className="shrink-0 text-xs text-text-muted">{timeAgo(post.createdAt)}</span>
@@ -180,12 +182,13 @@ export default function PostCard({ post }) {
       </div>
 
       {/* body */}
-      <p className="whitespace-pre-wrap text-[16.5px] leading-relaxed text-text-primary">
+      <p className="whitespace-pre-wrap text-[15.5px] leading-relaxed text-text-secondary">
         {clean(post.content)}
       </p>
 
       {post.code && (
-        <pre className="overflow-x-auto rounded-card border border-border bg-bg p-4 font-mono text-[13px] leading-relaxed text-accent">
+        <pre className="overflow-x-auto rounded-card border border-border p-4 font-mono text-[13px] leading-relaxed"
+          style={{ background: '#0D1628', color: '#FCA311' }}>
           <code>{cleanCode(post.code)}</code>
         </pre>
       )}
@@ -213,11 +216,12 @@ export default function PostCard({ post }) {
 
       {/* AI analysis (PRD §4) */}
       {post.aiAnalysis && (
-        <div className="rounded-card border border-primary/25 bg-primary/[0.06] p-3">
+        <div className="rounded-card border border-primary/20 p-3"
+          style={{ background: 'rgba(252,163,17,0.05)' }}>
           <div className="mb-1.5 flex items-center gap-2">
             <AIBadge />
             {post.memeScore != null && (
-              <span className="pill border border-warning/40 bg-warning/10 text-warning">
+              <span className="pill border border-primary/40 bg-primary/10 text-primary">
                 Humor {post.memeScore}/10
               </span>
             )}
@@ -231,13 +235,13 @@ export default function PostCard({ post }) {
         <div className="flex flex-wrap gap-1.5">
           {post.tags?.map((t) => <StackPill key={t} name={t} />)}
           {post.hashtags?.map((h) => (
-            <span key={h} className="pill text-accent">{h}</span>
+            <span key={h} className="pill bg-primary/10 text-primary border border-primary/25">{h}</span>
           ))}
         </div>
       )}
 
-      {/* actions (PRD §3.3.2) */}
-      <div className="flex items-center gap-1 border-t border-border pt-2 text-sm">
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 border-t border-border pt-2.5 text-sm">
         <span className="px-1">
           <LikeButton
             liked={liked}
@@ -247,48 +251,82 @@ export default function PostCard({ post }) {
         </span>
         <Link
           to={`/post/${post.postId}`}
-          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-text-primary"
+          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-surface-2 hover:text-white transition-colors"
         >
-          <MessageCircle size={18} /> <span>{post.commentsCount}</span>
+          <MessageCircle size={17} /> <span>{post.commentsCount}</span>
         </Link>
-        <button onClick={() => setRepostOpen(true)}
-          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-success">
-          <Repeat2 size={18} /> <span className="hidden sm:inline">Repost</span>
-        </button>
-        <button onClick={share}
-          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-bg hover:text-accent">
-          <Share2 size={17} /> <span className="hidden sm:inline">Share</span>
+        <button
+          onClick={() => setRepostOpen(true)}
+          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-surface-2 hover:text-success transition-colors"
+        >
+          <Repeat2 size={17} /> <span className="hidden sm:inline">Repost</span>
         </button>
         <button
+          onClick={share}
+          className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-surface-2 hover:text-primary transition-colors"
+        >
+          <Share2 size={17} /> <span className="hidden sm:inline">Share</span>
+        </button>
+        <motion.button
+          whileTap={{ scale: 0.88 }}
           onClick={() => toggleSave(post.postId)}
           className={`ml-auto rounded-input px-2.5 py-1.5 transition-colors ${
-            isSaved ? 'text-accent' : 'text-text-muted hover:bg-bg hover:text-text-primary'
+            isSaved ? 'text-primary' : 'text-text-muted hover:bg-surface-2 hover:text-white'
           }`}
           aria-pressed={isSaved}
           aria-label="Save"
         >
-          <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
-        </button>
+          <Bookmark size={17} fill={isSaved ? 'currentColor' : 'none'} />
+        </motion.button>
       </div>
 
-      {/* repost / quote modal */}
+      {/* Repost / quote modal */}
       {repostOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setRepostOpen(false)}>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="card relative z-10 w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          onClick={() => setRepostOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative z-10 w-full max-w-md space-y-3 rounded-2xl border border-border p-5 shadow-2xl"
+            style={{ background: 'linear-gradient(135deg, #14213D, #0D1628)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 font-display text-base font-bold"><Repeat2 size={16} /> Repost</h3>
-              <button onClick={() => setRepostOpen(false)} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
+              <h3 className="flex items-center gap-1.5 font-display text-base font-bold text-white">
+                <Repeat2 size={16} className="text-primary" /> Repost
+              </h3>
+              <button
+                onClick={() => setRepostOpen(false)}
+                className="text-text-muted hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
             </div>
-            <textarea className="input min-h-[80px] resize-none" placeholder="Add a comment (optional)…"
-              value={quote} onChange={(e) => setQuote(e.target.value)} />
-            <div className="rounded-card border border-border bg-bg p-2.5 text-xs text-text-muted">
-              <span className="font-semibold text-text-primary">@{post.author?.username}</span> · {(post.content || '').slice(0, 100)}
+            <textarea
+              className="input min-h-[80px] resize-none"
+              placeholder="Add a comment (optional)…"
+              value={quote}
+              onChange={(e) => setQuote(e.target.value)}
+            />
+            <div className="rounded-card border border-border p-2.5 text-xs text-text-muted"
+              style={{ background: 'rgba(0,0,0,0.3)' }}>
+              <span className="font-bold text-text-secondary">@{post.author?.username}</span>
+              {' '}· {(post.content || '').slice(0, 100)}
             </div>
             <div className="flex justify-end">
-              <button onClick={doRepost} className="btn-primary"><Repeat2 size={15} /> Repost</button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={doRepost}
+                className="btn-primary"
+              >
+                <Repeat2 size={15} /> Repost
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </motion.article>

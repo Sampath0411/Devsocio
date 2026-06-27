@@ -4,13 +4,24 @@
 ///               --dart-define=CLOUDINARY_PRESET=yyy
 ///
 /// API_BASE must point at the deployed web app that hosts the Vercel /api/*
-/// serverless functions (credits, ai, agent). The mobile client never holds the
-/// OpenRouter or Firebase-admin keys — those stay server-side, exactly like web.
+/// serverless functions (credits, ai, agent). When OPENROUTER_KEY is set,
+/// the mobile client calls OpenRouter directly for AI features.
 class Env {
   /// Base URL of the deployed DevSocio web app (hosts /api/* on Vercel).
   static const apiBase = String.fromEnvironment(
     'API_BASE',
     defaultValue: 'https://devsocio.vercel.app',
+  );
+
+  /// OpenRouter API key for direct AI calls from the mobile client.
+  ///
+  /// To set a key, pass it as a compile-time variable:
+  ///   flutter run --dart-define=OPENROUTER_KEY=sk-or-v1-...
+  ///
+  /// Without it, the client falls back to the server-side Vercel proxy.
+  static const openRouterKey = String.fromEnvironment(
+    'OPENROUTER_KEY',
+    defaultValue: '',
   );
 
   static const cloudinaryCloud =

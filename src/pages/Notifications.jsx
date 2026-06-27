@@ -7,12 +7,12 @@ import { timeAgo } from '../lib/time'
 import { Heart, UserPlus, Handshake, MessageCircle, Coins, Bell, AtSign } from '../components/icons'
 
 const ICON = {
-  like: { Icon: Heart, color: '#FF4C4C' },
-  follow: { Icon: UserPlus, color: '#007991' },
-  collab: { Icon: Handshake, color: '#439a86' },
-  comment: { Icon: MessageCircle, color: '#439a86' },
-  mention: { Icon: AtSign, color: '#439a86' },
-  credits: { Icon: Coins, color: '#FFB800' },
+  like: { Icon: Heart, color: '#FCA311' },
+  follow: { Icon: UserPlus, color: '#FCA311' },
+  collab: { Icon: Handshake, color: '#22C55E' },
+  comment: { Icon: MessageCircle, color: '#60A5FA' },
+  mention: { Icon: AtSign, color: '#A78BFA' },
+  credits: { Icon: Coins, color: '#FCA311' },
 }
 
 export default function Notifications() {
@@ -33,31 +33,49 @@ export default function Notifications() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <h1 className="mb-4 font-display text-xl font-bold">Notifications</h1>
+      <h1 className="mb-5 font-display text-xl font-bold text-white">Notifications</h1>
       {items.length === 0 ? (
         <EmptyState icon={Bell} title="No notifications yet — likes, follows and comments show up here." />
       ) : (
-        <div className="card divide-y divide-border p-0">
+        <div className="overflow-hidden rounded-2xl border border-border divide-y divide-border"
+          style={{ background: 'linear-gradient(135deg, rgba(20,33,61,0.8), rgba(13,22,40,0.9))' }}>
           {items.map((n) => {
             const meta = ICON[n.type] || ICON.like
             const Icon = meta.Icon
             return (
-              <div key={n.id} className={`flex items-center gap-3 px-4 py-3 ${!n.read ? 'bg-primary/5' : ''}`}>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
-                  style={{ backgroundColor: `${meta.color}1a`, color: meta.color }}>
-                  <Icon size={16} />
+              <div
+                key={n.id}
+                className={`flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-2/50 ${
+                  !n.read ? 'border-l-2 border-primary' : ''
+                }`}
+                style={!n.read ? { background: 'rgba(252,163,17,0.04)' } : {}}
+              >
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
+                  style={{ backgroundColor: `${meta.color}18`, color: meta.color }}
+                >
+                  <Icon size={15} />
                 </span>
                 {n.actor && <Avatar src={n.actor.avatar} alt={n.actor.displayName} size={36} />}
                 <p className="flex-1 text-sm">
                   {n.actor && (
-                    <Link to={`/profile/${n.actor.username}`} className="font-semibold hover:underline">{n.actor.displayName} </Link>
+                    <Link
+                      to={`/profile/${n.actor.username}`}
+                      className="font-bold text-white hover:text-primary transition-colors"
+                    >
+                      {n.actor.displayName}{' '}
+                    </Link>
                   )}
-                  <span className={n.actor ? 'text-text-muted' : ''}>{n.text}</span>
+                  <span className={n.actor ? 'text-text-muted' : 'text-text-secondary'}>{n.text}</span>
                 </p>
                 {(n.time || n.createdAt) && (
-                  <span className="shrink-0 text-xs text-text-muted">{n.time || timeAgo(n.createdAt)}</span>
+                  <span className="shrink-0 text-xs text-text-muted">
+                    {n.time || timeAgo(n.createdAt)}
+                  </span>
                 )}
-                {!n.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                {!n.read && (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                )}
               </div>
             )
           })}

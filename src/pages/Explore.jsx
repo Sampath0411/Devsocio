@@ -56,8 +56,11 @@ export default function Explore() {
       <div className="mb-5 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`pill border ${filter === f ? 'border-primary bg-primary/15 text-primary'
-              : 'border-border text-text-muted hover:border-primary/40'}`}>
+            className={`pill border transition-all ${
+              filter === f
+                ? 'border-primary bg-primary/15 text-primary shadow-glow-sm'
+                : 'border-border text-text-muted hover:border-primary/40 hover:text-white'
+            }`}>
             {f}
           </button>
         ))}
@@ -65,12 +68,13 @@ export default function Explore() {
 
       {/* Dev of the Week (PRD §3.5) */}
       {devOfWeek && (
-        <div className="card mb-5 flex items-center gap-4 border-warning/40 bg-warning/[0.06]">
+        <div className="card mb-5 flex items-center gap-4 border-primary/30"
+          style={{ background: 'rgba(252,163,17,0.06)' }}>
           <Avatar src={devOfWeek.avatar} alt="dev of week" size={56} ring />
           <div className="flex-1">
-            <p className="pill border border-warning/40 text-warning"><Star size={11} /> Dev of the Week</p>
-            <p className="mt-1 font-semibold">{devOfWeek.displayName}</p>
-            <p className="text-xs text-text-muted">{devOfWeek.bio}</p>
+            <span className="pill border border-primary/40 text-primary"><Star size={11} /> Dev of the Week</span>
+            <p className="mt-1 font-bold text-white">{devOfWeek.displayName}</p>
+            <p className="text-xs text-text-muted line-clamp-2">{devOfWeek.bio}</p>
           </div>
         </div>
       )}
@@ -86,19 +90,22 @@ export default function Explore() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((u) => (
-            <div key={u.uid} className="card">
+            <div key={u.uid} className="post-card">
               <div className="flex items-start gap-3">
                 <Link to={`/profile/${u.username}`}>
                   <Avatar src={u.avatar} alt={u.displayName} size={48} />
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link to={`/profile/${u.username}`} className="font-semibold hover:underline">{u.displayName}</Link>
+                  <Link to={`/profile/${u.username}`} className="font-bold text-white hover:text-primary transition-colors">{u.displayName}</Link>
                   <p className="truncate text-xs text-text-muted">@{u.username}</p>
                 </div>
                 <button onClick={() => toggleFollow(u.uid)}
-                  className={`pill border ${following[u.uid] ? 'border-success/50 text-success'
-                    : 'border-primary/50 text-primary hover:bg-primary/10'}`}>
-                  {following[u.uid] ? 'Following' : 'Follow'}
+                  className={`pill border text-xs font-bold transition-all ${
+                    following[u.uid]
+                      ? 'border-success/50 text-success bg-success/10'
+                      : 'border-primary/50 text-primary hover:bg-primary/10'
+                  }`}>
+                  {following[u.uid] ? 'Following' : '+ Follow'}
                 </button>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-text-muted">{u.bio}</p>
@@ -107,8 +114,8 @@ export default function Explore() {
                 {(u.techStack || []).slice(0, 3).map((s) => <StackPill key={s} name={s} />)}
               </div>
               <div className="mt-2 flex gap-2">
-                {u.openToCollab && <span className="pill border border-success/40 text-success"><Handshake size={11} /> Open to Collab</span>}
-                {u.lookingForCofounder && <span className="pill border border-warning/40 text-warning"><Rocket size={11} /> Co-founder</span>}
+                {u.openToCollab && <span className="pill border border-success/40 bg-success/8 text-success"><Handshake size={11} /> Open to Collab</span>}
+                {u.lookingForCofounder && <span className="pill border border-primary/40 bg-primary/10 text-primary"><Rocket size={11} /> Co-founder</span>}
               </div>
             </div>
           ))}
@@ -117,11 +124,14 @@ export default function Explore() {
 
       {trending.length > 0 && (
         <div className="card mt-5">
-          <h2 className="mb-3 font-display text-sm font-bold">Trending Hashtags</h2>
+          <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-white">
+            <span className="h-1 w-4 rounded-full bg-primary" />
+            Trending Hashtags
+          </h2>
           <div className="flex flex-wrap gap-2">
             {trending.map((h) => (
-              <span key={h.tag} className="pill border border-border text-accent">
-                {h.tag} <span className="text-text-muted">{h.posts}</span>
+              <span key={h.tag} className="pill border border-primary/30 bg-primary/8 text-primary cursor-pointer hover:bg-primary/15 transition-colors">
+                {h.tag} <span className="text-primary/60 ml-1">{h.posts}</span>
               </span>
             ))}
           </div>

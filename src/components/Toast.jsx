@@ -8,9 +8,9 @@ const ToastContext = createContext(() => {})
 export const useToast = () => useContext(ToastContext)
 
 const TONE = {
-  primary: { color: '#007991', Icon: Coins },
-  success: { color: '#439a86', Icon: Check },
-  warning: { color: '#FFB800', Icon: AlertTriangle },
+  primary: { color: '#FCA311', Icon: Coins },
+  success: { color: '#22C55E', Icon: Check },
+  warning: { color: '#FCA311', Icon: AlertTriangle },
 }
 
 let nextId = 1

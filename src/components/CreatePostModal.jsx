@@ -109,22 +109,42 @@ export default function CreatePostModal({ open, onClose }) {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.25 }}
-            className="card relative z-10 w-full max-w-lg space-y-4">
+            initial={{ scale: 0.95, opacity: 0, y: 12 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 12 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            className="relative z-10 w-full max-w-lg space-y-4 rounded-2xl border border-border p-5 shadow-2xl"
+            style={{ background: 'linear-gradient(135deg, #14213D 0%, #0D1628 100%)' }}
+          >
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Create Post</h2>
-              <button onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
+              <h2 className="font-display text-lg font-bold text-white">Create Post</h2>
+              <button
+                onClick={onClose}
+                className="grid h-8 w-8 place-items-center rounded-full border border-border text-text-muted hover:border-white/30 hover:text-white transition-all"
+              >
+                <X size={15} />
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
               {POST_TYPES.map((p) => {
-                const Icon = TYPE_META[p.type].Icon
+                const { Icon, tint } = TYPE_META[p.type]
                 const active = type === p.type
                 return (
-                  <button key={p.type} onClick={() => { setType(p.type); setAiState('idle') }}
-                    className={`pill border ${active ? 'border-primary bg-primary/15 text-primary'
-                      : 'border-border text-text-muted hover:border-primary/40'}`}>
+                  <button
+                    key={p.type}
+                    onClick={() => { setType(p.type); setAiState('idle') }}
+                    className={`pill border text-xs font-semibold transition-all ${
+                      active
+                        ? 'shadow-glow-sm'
+                        : 'border-border text-text-muted hover:border-primary/40 hover:text-white'
+                    }`}
+                    style={active ? {
+                      borderColor: tint,
+                      background: `${tint}18`,
+                      color: tint,
+                    } : {}}
+                  >
                     <Icon size={12} /> {p.type}
                   </button>
                 )
@@ -158,23 +178,45 @@ export default function CreatePostModal({ open, onClose }) {
               )}
             </div>
 
-            <div className="rounded-card border border-primary/25 bg-primary/[0.06] p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-text-muted">{POST_TYPES.find((p) => p.type === type)?.ai}</p>
-                <button onClick={runAI} disabled={!content.trim() || aiState === 'loading'}
-                  className="btn-accent !px-3 !py-1.5 text-xs">
+            <div
+              className="rounded-xl border border-primary/20 p-3.5"
+              style={{ background: 'rgba(252,163,17,0.04)' }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex-1 text-xs text-text-muted leading-relaxed">
+                  {POST_TYPES.find((p) => p.type === type)?.ai}
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={runAI}
+                  disabled={!content.trim() || aiState === 'loading'}
+                  className="btn-primary shrink-0 !px-3 !py-1.5 text-xs"
+                >
                   <Sparkles size={13} /> Run AI
-                </button>
+                </motion.button>
               </div>
-              {aiState === 'loading' && <div className="mt-2"><AILoader label="Analyzing…" /></div>}
-              {aiState === 'done' && <p className="mt-2 text-sm text-text-primary">{aiResult}</p>}
+              {aiState === 'loading' && <div className="mt-2.5"><AILoader label="Analyzing your post…" /></div>}
+              {aiState === 'done' && (
+                <p className="mt-2.5 text-sm text-text-secondary leading-relaxed border-t border-primary/20 pt-2.5">
+                  {aiResult}
+                </p>
+              )}
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-t border-border pt-3">
               <div className="flex gap-1.5">
                 {(user?.techStack || []).slice(0, 3).map((t) => <StackPill key={t} name={t} />)}
               </div>
-              <button onClick={publish} disabled={!content.trim()} className="btn-primary">Publish</button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={publish}
+                disabled={!content.trim()}
+                className="btn-primary"
+              >
+                Publish
+              </motion.button>
             </div>
           </motion.div>
         </motion.div>

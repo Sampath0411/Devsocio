@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useToast } from '../components/Toast'
 import { emailLogin, googleLogin, githubLogin, authErrorMessage, resetPassword } from '../lib/auth'
-import { GithubMark, GoogleMark, Code2, Rocket } from '../components/icons'
+import { GithubMark, GoogleMark, Rocket, Eye, EyeOff, Mail, Lock } from '../components/icons'
+import DevSocioLogo from '../components/Logo'
 
 export default function Login() {
   const toast = useToast()
@@ -11,6 +13,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
   const [showReset, setShowReset] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const sendReset = async (e) => {
     e?.preventDefault()
@@ -27,7 +30,7 @@ export default function Login() {
     setBusy(true)
     try {
       await fn()
-      toast('Welcome back to DevSocio', { icon: Rocket })
+      toast('Welcome back to DevSocio 🚀', { icon: Rocket })
       navigate('/feed')
     } catch (err) {
       toast(authErrorMessage(err), { tone: 'warning' })
@@ -38,75 +41,182 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to your DevSocio account">
-      <button disabled={busy} onClick={() => run(githubLogin)} className="btn-ghost w-full justify-center">
-        <GithubMark /> Continue with GitHub
-      </button>
-      <button disabled={busy} onClick={() => run(googleLogin)} className="btn-ghost w-full justify-center">
-        <GoogleMark /> Continue with Google
-      </button>
+      {/* OAuth buttons */}
+      <div className="space-y-2">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          disabled={busy}
+          onClick={() => run(githubLogin)}
+          className="btn-ghost w-full justify-center"
+        >
+          <GithubMark /> Continue with GitHub
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          disabled={busy}
+          onClick={() => run(googleLogin)}
+          className="btn-ghost w-full justify-center"
+        >
+          <GoogleMark /> Continue with Google
+        </motion.button>
+      </div>
 
       <Divider />
 
+      {/* Email/password form */}
       <form onSubmit={(e) => { e.preventDefault(); run(() => emailLogin(form)) }} className="space-y-3">
-        <input
-          className="input" type="email" placeholder="you@dev.com" required
-          value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-        <input
-          className="input" type="password" placeholder="Password" required
-          value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
+        <div className="relative">
+          <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            className="input pl-9"
+            type="email"
+            placeholder="you@dev.com"
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </div>
+
+        <div className="relative">
+          <Lock size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            className="input pl-9 pr-10"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Password"
+            required
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+          >
+            {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        </div>
+
         <div className="flex items-center justify-between text-xs text-text-muted">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" className="accent-primary" defaultChecked /> Remember me
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded accent-primary"
+              defaultChecked
+            />
+            Remember me
           </label>
-          <button type="button" className="hover:text-accent" onClick={() => { setShowReset((v) => !v); setResetEmail(form.email) }}>
+          <button
+            type="button"
+            className="hover:text-primary transition-colors"
+            onClick={() => { setShowReset((v) => !v); setResetEmail(form.email) }}
+          >
             Forgot password?
           </button>
         </div>
-        <button type="submit" disabled={busy} className="btn-primary w-full justify-center">
-          {busy ? 'Logging in…' : 'Log in'}
-        </button>
+
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          type="submit"
+          disabled={busy}
+          className="btn-primary w-full justify-center"
+        >
+          {busy ? (
+            <span className="flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+              Logging in…
+            </span>
+          ) : 'Log in'}
+        </motion.button>
       </form>
 
+      {/* Password reset inline */}
       {showReset && (
-        <div className="space-y-2 rounded-card border border-border bg-bg p-3">
-          <p className="text-xs text-text-muted">Enter your email and we'll send a reset link.</p>
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="space-y-2 rounded-card border border-primary/25 p-3"
+          style={{ background: 'rgba(252,163,17,0.05)' }}
+        >
+          <p className="text-xs text-text-muted">
+            Enter your email and we'll send a reset link.
+          </p>
           <div className="flex gap-2">
-            <input className="input text-sm" type="email" placeholder="you@dev.com"
-              value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
-            <button type="button" onClick={sendReset} disabled={!resetEmail.trim()} className="btn-primary shrink-0 text-sm">Send link</button>
+            <input
+              className="input text-sm"
+              type="email"
+              placeholder="you@dev.com"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={sendReset}
+              disabled={!resetEmail.trim()}
+              className="btn-primary shrink-0 text-sm !px-3"
+            >
+              Send
+            </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       <p className="text-center text-sm text-text-muted">
-        New here? <Link to="/signup" className="font-semibold text-primary hover:underline">Join DevSocio</Link>
+        New here?{' '}
+        <Link to="/signup" className="font-bold text-primary hover:underline">
+          Join DevSocio
+        </Link>
       </p>
     </AuthShell>
   )
 }
 
+// Shared auth shell
 export function AuthShell({ title, subtitle, children }) {
   return (
-    <div className="flex min-h-screen items-center justify-center px-5 py-10">
+    <div
+      className="flex min-h-screen items-center justify-center px-5 py-10"
+      style={{ background: '#000000' }}
+    >
+      {/* Background glow */}
       <div
-        className="pointer-events-none fixed left-1/2 top-1/4 -z-10 h-96 w-96 -translate-x-1/2 opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(closest-side,#007991,transparent)' }}
+        className="pointer-events-none fixed left-1/2 top-1/4 -z-10 h-[500px] w-[500px] -translate-x-1/2 opacity-15 blur-3xl"
+        style={{ background: 'radial-gradient(closest-side, #FCA311, transparent)' }}
       />
-      <div className="w-full max-w-sm space-y-5">
-        <Link to="/" className="flex items-center justify-center gap-2">
-          <span className="grid h-10 w-10 place-items-center rounded-card bg-primary text-white">
-            <Code2 size={20} />
-          </span>
-          <span className="font-display text-2xl font-extrabold">DevSocio</span>
+      {/* Grid pattern */}
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-grid opacity-20" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm space-y-6"
+      >
+        {/* Logo */}
+        <Link to="/" className="flex justify-center">
+          <DevSocioLogo size="lg" />
         </Link>
+
+        {/* Title */}
         <div className="text-center">
-          <h1 className="font-display text-2xl font-bold">{title}</h1>
-          <p className="mt-1 text-sm text-text-muted">{subtitle}</p>
+          <h1 className="font-display text-2xl font-bold text-white">{title}</h1>
+          <p className="mt-1.5 text-sm text-text-muted">{subtitle}</p>
         </div>
-        <div className="card space-y-3">{children}</div>
-      </div>
+
+        {/* Content card */}
+        <div
+          className="rounded-2xl border border-border p-6 space-y-4 shadow-2xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(26,43,78,0.8) 0%, rgba(20,33,61,0.95) 100%)',
+            boxShadow: '0 24px 64px -12px rgba(0,0,0,0.8), 0 0 0 1px rgba(252,163,17,0.06)',
+          }}
+        >
+          {children}
+        </div>
+      </motion.div>
     </div>
   )
 }
@@ -114,7 +224,9 @@ export function AuthShell({ title, subtitle, children }) {
 export function Divider() {
   return (
     <div className="flex items-center gap-3 text-xs text-text-muted">
-      <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+      <span className="h-px flex-1 bg-border" />
+      or
+      <span className="h-px flex-1 bg-border" />
     </div>
   )
 }

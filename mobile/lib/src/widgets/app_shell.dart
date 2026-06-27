@@ -7,20 +7,20 @@ import '../data/auth_repository.dart';
 import '../data/user_repository.dart';
 import 'avatar.dart';
 import 'presence_heartbeat.dart';
+import '../core/notifications.dart';
+import '../features/about/about_sheet.dart';
 import 'ui.dart';
 
-/// Bottom-nav shell. Tabs: Feed, Explore, Ideas, Messages, Profile (last).
-/// Activity/Notifications lives in the top app bar (see FeedScreen).
+/// Bottom-nav shell with animated tab transitions.
 class AppShell extends ConsumerWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
 
-  // route, unselected icon, selected icon, label
   static const _tabs = [
-    ('/feed', Icons.home_outlined, Icons.home, 'Feed'),
-    ('/explore', Icons.search, Icons.search, 'Explore'),
-    ('/ideas', Icons.lightbulb_outline, Icons.lightbulb, 'Ideas'),
-    ('/messages', Icons.chat_bubble_outline, Icons.chat_bubble, 'Messages'),
+    ('/feed', Icons.home_outlined, Icons.home, 'Feed', AppColors.feedPrimary),
+    ('/explore', Icons.search, Icons.search, 'Explore', AppColors.explorePrimary),
+    ('/ideas', Icons.lightbulb_outline, Icons.lightbulb, 'Ideas', AppColors.ideasPrimary),
+    ('/messages', Icons.chat_bubble_outline, Icons.chat_bubble, 'Messages', AppColors.messagesPrimary),
   ];
 
   int _indexFor(String location) {
@@ -34,7 +34,6 @@ class AppShell extends ConsumerWidget {
     final index = _indexFor(location);
     final me = ref.watch(currentUserProvider).value;
 
-    // Banned users are signed out on next app interaction (mirrors web).
     ref.listen(currentUserProvider, (_, next) {
       final user = next.value;
       if (user != null && user.banned) {
@@ -46,23 +45,33 @@ class AppShell extends ConsumerWidget {
     });
 
     return Scaffold(
-      body: PresenceHeartbeat(child: child),
+      body: FcmHandler(child: PresenceHeartbeat(child: child)),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
+        animationDuration: const Duration(milliseconds: 400),
         onDestinationSelected: (i) {
           if (i < _tabs.length) {
             context.go(_tabs[i].$1);
           } else if (me != null) {
-            // Last item = Profile.
             context.push('/profile/${me.username}');
           }
         },
         destinations: [
-          for (final t in _tabs)
+          for (int i = 0; i < _tabs.length; i++)
             NavigationDestination(
-              icon: Icon(t.$2),
-              selectedIcon: Icon(t.$3, color: AppColors.primary),
-              label: t.$4,
+              icon: GestureDetector(
+                onLongPress: i == 0
+                    ? () => _showAbout(context)
+                    : null,
+                child: Icon(_tabs[i].$2, color: AppColors.textMuted),
+              ),
+              selectedIcon: GestureDetector(
+                onLongPress: i == 0
+                    ? () => _showAbout(context)
+                    : null,
+                child: Icon(_tabs[i].$3, color: _tabs[i].$5),
+              ),
+              label: _tabs[i].$4,
             ),
           NavigationDestination(
             icon: Avatar(url: me?.avatar ?? '', size: 26),
@@ -71,6 +80,15 @@ class AppShell extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AboutSheet(),
     );
   }
 }

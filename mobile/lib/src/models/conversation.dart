@@ -57,21 +57,68 @@ class Message {
   final String id;
   final String from;
   final String text;
+  final bool deleted;
+  final Map<String, String> reactions; // uid -> emoji
+  final ReplySnapshot? replyTo;
   final dynamic createdAt;
 
   const Message({
     required this.id,
     required this.from,
     required this.text,
+    this.deleted = false,
+    this.reactions = const {},
+    this.replyTo,
     required this.createdAt,
   });
 
   DateTime? get createdAtDate => tsToDate(createdAt);
 
-  factory Message.fromMap(String id, Map<String, dynamic> m) => Message(
-        id: id,
+  factory Message.fromMap(String id, Map<String, dynamic> m) {
+    // Parse reactions map
+    final rawReactions = (m['reactions'] as Map<String, dynamic>?) ?? const {};
+    final reactions = rawReactions.map((k, v) => MapEntry(k, v.toString()));
+
+    // Parse replyTo
+    ReplySnapshot? replyTo;
+    if (m['replyTo'] is Map<String, dynamic>) {
+      replyTo = ReplySnapshot.fromMap(
+          Map<String, dynamic>.from(m['replyTo'] as Map));
+    }
+
+    return Message(
+      id: id,
+      from: (m['from'] ?? '') as String,
+      text: (m['text'] ?? '') as String,
+      deleted: (m['deleted'] ?? false) as bool,
+      reactions: reactions,
+      replyTo: replyTo,
+      createdAt: m['createdAt'],
+    );
+  }
+}
+
+/// Snapshot of a message being replied to.
+class ReplySnapshot {
+  final String from;
+  final String text;
+  final String fromName;
+
+  const ReplySnapshot({
+    required this.from,
+    required this.text,
+    required this.fromName,
+  });
+
+  factory ReplySnapshot.fromMap(Map<String, dynamic> m) => ReplySnapshot(
         from: (m['from'] ?? '') as String,
         text: (m['text'] ?? '') as String,
-        createdAt: m['createdAt'],
+        fromName: (m['fromName'] ?? '') as String,
       );
+
+  Map<String, dynamic> toMap() => {
+        'from': from,
+        'text': text,
+        'fromName': fromName,
+      };
 }

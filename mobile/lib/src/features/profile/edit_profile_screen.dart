@@ -38,13 +38,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void dispose() {
     for (final c in [
-      _displayName,
-      _bio,
-      _avatar,
-      _github,
-      _linkedin,
-      _twitter,
-      _portfolio
+      _displayName, _bio, _avatar, _github, _linkedin, _twitter, _portfolio
     ]) {
       c.dispose();
     }
@@ -110,15 +104,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     try {
       final links = <String, dynamic>{};
       if (_github.text.trim().isNotEmpty) links['github'] = _github.text.trim();
-      if (_linkedin.text.trim().isNotEmpty) {
-        links['linkedin'] = _linkedin.text.trim();
-      }
-      if (_twitter.text.trim().isNotEmpty) {
-        links['twitter'] = _twitter.text.trim();
-      }
-      if (_portfolio.text.trim().isNotEmpty) {
-        links['portfolio'] = _portfolio.text.trim();
-      }
+      if (_linkedin.text.trim().isNotEmpty) links['linkedin'] = _linkedin.text.trim();
+      if (_twitter.text.trim().isNotEmpty) links['twitter'] = _twitter.text.trim();
+      if (_portfolio.text.trim().isNotEmpty) links['portfolio'] = _portfolio.text.trim();
       await ref.read(userRepositoryProvider).updateProfile(me.uid, {
         'displayName': _displayName.text.trim(),
         'bio': _bio.text.trim(),
@@ -129,7 +117,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'lookingForCofounder': _lookingForCofounder,
         'links': links,
       });
-      // Server-trusted one-time profile-completion bonus (+50).
       ref.read(creditsApiProvider).tryCall(
           () => ref.read(creditsApiProvider).profileComplete());
       if (mounted) {
@@ -148,7 +135,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _hydrate();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit profile'),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: AppColors.gradientProfile,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.edit, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text('Edit profile'),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
@@ -157,7 +157,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Save'),
+                : Text('Save',
+                    style: TextStyle(
+                        color: AppColors.profilePrimary,
+                        fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -169,23 +172,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               onTap: _pickAvatar,
               child: Stack(
                 children: [
-                  Avatar(url: _avatar.text, size: 88),
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.gradientProfile,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.profilePrimary
+                              .withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                    child: Avatar(url: _avatar.text, size: 88),
+                  ),
                   Positioned(
                     right: 0,
                     bottom: 0,
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
-                          color: AppColors.primary, shape: BoxShape.circle),
+                          gradient: AppColors.gradientProfile,
+                          shape: BoxShape.circle),
                       child: const Icon(Icons.camera_alt,
-                          size: 16, color: Colors.white),
+                          size: 18, color: Colors.white),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _label('Avatar URL'),
           TextField(
               controller: _avatar,
@@ -225,7 +244,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   label: Text(lvl),
                   selected: _devLevel == lvl,
                   onSelected: (_) => setState(() => _devLevel = lvl),
-                  selectedColor: AppColors.primary,
+                  selectedColor: AppColors.profilePrimary,
                   backgroundColor: AppColors.surfaceAlt,
                   labelStyle: TextStyle(
                       color: _devLevel == lvl
@@ -246,28 +265,42 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   selected: _stack.contains(tech),
                   onSelected: (sel) => setState(
                       () => sel ? _stack.add(tech) : _stack.remove(tech)),
-                  selectedColor: AppColors.primary.withValues(alpha: 0.3),
-                  checkmarkColor: AppColors.primary,
+                  selectedColor:
+                      AppColors.profilePrimary.withValues(alpha: 0.3),
+                  checkmarkColor: AppColors.profilePrimary,
                   backgroundColor: AppColors.surfaceAlt,
                 ),
             ],
           ),
           const SizedBox(height: 16),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _openToCollab,
-            onChanged: (v) => setState(() => _openToCollab = v),
-            title: const Text('Open to collaborate'),
-            activeThumbColor: AppColors.primary,
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  value: _openToCollab,
+                  onChanged: (v) => setState(() => _openToCollab = v),
+                  title: const Text('Open to collaborate'),
+                  activeThumbColor: AppColors.profilePrimary,
+                  activeTrackColor:
+                      AppColors.profilePrimary.withValues(alpha: 0.3),
+                ),
+                Divider(
+                    height: 1,
+                    color: AppColors.border.withValues(alpha: 0.5)),
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  value: _lookingForCofounder,
+                  onChanged: (v) => setState(() => _lookingForCofounder = v),
+                  title: const Text('Looking for a co-founder'),
+                  activeThumbColor: AppColors.profilePrimary,
+                  activeTrackColor:
+                      AppColors.profilePrimary.withValues(alpha: 0.3),
+                ),
+              ],
+            ),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _lookingForCofounder,
-            onChanged: (v) => setState(() => _lookingForCofounder = v),
-            title: const Text('Looking for a co-founder'),
-            activeThumbColor: AppColors.primary,
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           _label('Social links'),
           _linkField(_github, 'GitHub', Icons.code),
           _linkField(_linkedin, 'LinkedIn', Icons.business_center),
@@ -282,7 +315,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
       );
 
   Widget _linkField(TextEditingController c, String hint, IconData icon) =>
@@ -290,7 +324,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         padding: const EdgeInsets.only(bottom: 10),
         child: TextField(
           controller: c,
-          decoration: InputDecoration(hintText: hint, prefixIcon: Icon(icon)),
+          decoration:
+              InputDecoration(hintText: hint, prefixIcon: Icon(icon)),
         ),
       );
 }

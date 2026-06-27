@@ -4,10 +4,50 @@ import 'package:http/http.dart' as http;
 
 import '../core/env.dart';
 
-/// Calls the server-side AI proxy (Vercel /api/ai). The OpenRouter key stays on
-/// the server — the mobile client never holds it (mirrors src/lib/ai.js prod path).
+/// Calls OpenRouter directly for AI features. Falls back to the server-side
+/// proxy (Vercel /api/ai) if no local key is configured.
 class AiClient {
   Future<String> _chat(List<Map<String, String>> messages,
+      {double temperature = 0.7, int maxTokens = 500}) async {
+    // Direct OpenRouter call if key is available
+    if (Env.openRouterKey.isNotEmpty) {
+      return _chatDirect(messages,
+          temperature: temperature, maxTokens: maxTokens);
+    }
+    // Fallback to Vercel proxy
+    return _chatProxy(messages,
+        temperature: temperature, maxTokens: maxTokens);
+  }
+
+  Future<String> _chatDirect(List<Map<String, String>> messages,
+      {double temperature = 0.7, int maxTokens = 500}) async {
+    final res = await http.post(
+      Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${Env.openRouterKey}',
+        'HTTP-Referer': 'https://devsocio.vercel.app',
+        'X-Title': 'DevSocio Mobile',
+      },
+      body: jsonEncode({
+        'model': 'deepseek/deepseek-chat-v3-0324:free',
+        'messages': messages,
+        'temperature': temperature,
+        'max_tokens': maxTokens,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('AI request failed (${res.statusCode}): ${res.body}');
+    }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final choices = data['choices'] as List?;
+    if (choices == null || choices.isEmpty) throw Exception('Empty AI response');
+    final text = choices[0]['message']?['content'] as String?;
+    if (text == null || text.isEmpty) throw Exception('Empty AI response');
+    return text;
+  }
+
+  Future<String> _chatProxy(List<Map<String, String>> messages,
       {double temperature = 0.7, int maxTokens = 500}) async {
     final res = await http.post(
       Uri.parse(Env.aiUrl),

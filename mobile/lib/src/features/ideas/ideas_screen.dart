@@ -29,7 +29,20 @@ class _IdeasScreenState extends ConsumerState<IdeasScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ideas'),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: AppColors.gradientIdeas,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.lightbulb_outline, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text('Ideas'),
+          ],
+        ),
         actions: [
           PopupMenuButton<_Sort>(
             icon: const Icon(Icons.sort),
@@ -47,7 +60,7 @@ class _IdeasScreenState extends ConsumerState<IdeasScreen> {
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _composeIdea(context),
-              backgroundColor: AppColors.warning,
+              backgroundColor: AppColors.ideasPrimary,
               icon: const Icon(Icons.lightbulb, color: Colors.black87),
               label: const Text('New idea',
                   style: TextStyle(color: Colors.black87)),
@@ -69,20 +82,34 @@ class _IdeasScreenState extends ConsumerState<IdeasScreen> {
               break;
           }
           if (sorted.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(40),
+                padding: const EdgeInsets.all(40),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lightbulb_outline,
-                        size: 56, color: AppColors.warning),
-                    SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.gradientIdeas,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.ideasPrimary.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.lightbulb_outline,
+                          size: 40, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 16),
                     Text('No ideas yet',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700)),
-                    SizedBox(height: 8),
-                    Text('Share a startup or project idea and get AI feedback.',
+                        style: AppTheme.brandTitle(18)),
+                    const SizedBox(height: 8),
+                    const Text(
+                        'Share a startup or project idea and get AI feedback.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.textMuted)),
                   ],
@@ -123,7 +150,7 @@ class _IdeasScreenState extends ConsumerState<IdeasScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Share an idea', style: AppTheme.brandTitle),
+              Text('Share an idea', style: AppTheme.brandTitle(22)),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -167,8 +194,8 @@ class _IdeasScreenState extends ConsumerState<IdeasScreen> {
                         : const Icon(Icons.auto_awesome, size: 16),
                     label: const Text('Analyze'),
                     style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary)),
+                        foregroundColor: AppColors.ideasPrimary,
+                        side: const BorderSide(color: AppColors.ideasPrimary)),
                   ),
                   const Spacer(),
                   ElevatedButton(
@@ -186,6 +213,10 @@ class _IdeasScreenState extends ConsumerState<IdeasScreen> {
                       });
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.ideasPrimary,
+                      foregroundColor: Colors.black87,
+                    ),
                     child: const Text('Post idea'),
                   ),
                 ],
@@ -236,73 +267,95 @@ class _IdeaCard extends ConsumerWidget {
     final isMine = me?.uid == idea.authorUid;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () =>
-                      context.push('/profile/${idea.author.username}'),
-                  child: Avatar(url: idea.author.avatar, size: 36),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(idea.author.displayName,
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600)),
-                      Text('@${idea.author.username}',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textMuted)),
-                    ],
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: AppColors.ideasPrimary.withValues(alpha: 0.2)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.surfaceCard,
+              AppColors.surface,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () =>
+                        context.push('/profile/${idea.author.username}'),
+                    child: Avatar(url: idea.author.avatar, size: 36),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(idea.author.displayName,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        Text('@${idea.author.username}',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textMuted)),
+                      ],
+                    ),
+                  ),
+                  if (idea.aiScore != null)
+                    _ScoreRing(score: idea.aiScore!),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(idea.description, style: const TextStyle(height: 1.4)),
+              if (idea.strengths.isNotEmpty || idea.weaknesses.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _AnalysisBox(
+                  score: IdeaScore(
+                    score: idea.aiScore ?? 0,
+                    strengths: idea.strengths,
+                    weaknesses: idea.weaknesses,
+                    competitors: idea.competitors,
                   ),
                 ),
-                if (idea.aiScore != null) _ScoreRing(score: idea.aiScore!),
               ],
-            ),
-            const SizedBox(height: 10),
-            Text(idea.description, style: const TextStyle(height: 1.4)),
-            if (idea.strengths.isNotEmpty || idea.weaknesses.isNotEmpty) ...[
               const SizedBox(height: 10),
-              _AnalysisBox(
-                score: IdeaScore(
-                  score: idea.aiScore ?? 0,
-                  strengths: idea.strengths,
-                  weaknesses: idea.weaknesses,
-                  competitors: idea.competitors,
-                ),
+              Row(
+                children: [
+                  Icon(Icons.trending_up,
+                      size: 16, color: AppColors.ideasPrimary),
+                  const SizedBox(width: 4),
+                  Text('${idea.invested} invested',
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textMuted)),
+                  const Spacer(),
+                  if (!isMine) ...[
+                    TextButton(
+                      onPressed: () => _collab(ref, context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.ideasPrimary,
+                      ),
+                      child: const Text('Collab'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _invest(ref, context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.ideasPrimary,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                      child: const Text('Invest 50'),
+                    ),
+                  ],
+                ],
               ),
             ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(Icons.trending_up,
-                    size: 16, color: AppColors.success),
-                const SizedBox(width: 4),
-                Text('${idea.invested} invested',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.textMuted)),
-                const Spacer(),
-                if (!isMine) ...[
-                  TextButton(
-                    onPressed: () => _collab(ref, context),
-                    child: const Text('Collab'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => _invest(ref, context),
-                    style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14)),
-                    child: const Text('Invest 50'),
-                  ),
-                ],
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -316,18 +369,29 @@ class _ScoreRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = score >= 7
         ? AppColors.success
-        : (score >= 4 ? AppColors.warning : AppColors.danger);
+        : (score >= 4 ? AppColors.ideasPrimary : AppColors.danger);
     return Container(
       width: 44,
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: color, width: 2.5),
+        gradient: LinearGradient(
+          colors: [color, color.withValues(alpha: 0.6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 8,
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Text(score.toStringAsFixed(1),
-          style: TextStyle(
-              fontWeight: FontWeight.w700, color: color, fontSize: 13)),
+          style: const TextStyle(
+              fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13)),
     );
   }
 }
@@ -341,14 +405,22 @@ class _AnalysisBox extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        gradient: LinearGradient(
+          colors: [
+            AppColors.ideasPrimary.withValues(alpha: 0.08),
+            AppColors.ideasSecondary.withValues(alpha: 0.03),
+          ],
+        ),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.ideasPrimary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
+            const Icon(Icons.auto_awesome, size: 14, color: AppColors.ideasPrimary),
             const SizedBox(width: 6),
             Text('AI market score: ${score.score.toStringAsFixed(1)}/10',
                 style: const TextStyle(
@@ -357,7 +429,7 @@ class _AnalysisBox extends StatelessWidget {
           for (final s in score.strengths)
             _row(Icons.check_circle, AppColors.success, s),
           for (final w in score.weaknesses)
-            _row(Icons.warning_amber, AppColors.warning, w),
+            _row(Icons.warning_amber, AppColors.ideasPrimary, w),
           if (score.competitors.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text('Competitors: ${score.competitors.join(', ')}',

@@ -12,12 +12,12 @@ import { Sparkles, Camera, Handshake, Rocket, Plus, X } from '../components/icon
 
 // Preset banner gradients users can pick (PRD §3.2.1 cover photo).
 const BANNERS = [
-  'linear-gradient(120deg,#007991,#439a86,#222e50)',
-  'linear-gradient(120deg,#439a86,#bcd8c1)',
-  'linear-gradient(120deg,#222e50,#007991)',
-  'linear-gradient(120deg,#e9d985,#439a86)',
-  'linear-gradient(120deg,#007991,#bcd8c1)',
-  'linear-gradient(120deg,#222e50,#439a86,#e9d985)',
+  'linear-gradient(135deg, #14213D, #0D1628)',
+  'linear-gradient(135deg, #14213D, #FCA311)',
+  'linear-gradient(135deg, #FCA311, #E8920A)',
+  'linear-gradient(135deg, #0D1628, #14213D)',
+  'linear-gradient(135deg, #1A2B4E, #FCA311)',
+  'linear-gradient(135deg, #14213D, #1A2B4E, #FCA311)',
 ]
 
 const STACK_OPTIONS = Object.keys(STACK_COLORS)
@@ -176,9 +176,9 @@ export default function EditProfile() {
           {Object.values(form.links).filter((l) => l.platform !== 'github').length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {Object.values(form.links).filter((l) => l.platform !== 'github').map((l) => (
-                <span key={l.platform} className="pill border border-border text-accent">
+                <span key={l.platform} className="pill border border-primary/30 bg-primary/8 text-primary">
                   {l.handle}
-                  <button type="button" onClick={() => removeLink(l.platform)} className="ml-1 text-text-muted hover:text-danger"><X size={11} /></button>
+                  <button type="button" onClick={() => removeLink(l.platform)} className="ml-1 text-primary/60 hover:text-white"><X size={11} /></button>
                 </span>
               ))}
             </div>
@@ -188,7 +188,9 @@ export default function EditProfile() {
         <div>
           <div className="mb-1 flex items-center justify-between">
             <label className="text-xs font-semibold text-text-muted">Bio ({form.bio.length}/160)</label>
-            <button onClick={genBio} disabled={genning} className="btn-accent !px-3 !py-1 text-xs"><Sparkles size={13} /> Generate Bio</button>
+            <button onClick={genBio} disabled={genning} className="btn-primary !px-3 !py-1 text-xs">
+              <Sparkles size={13} /> Generate Bio
+            </button>
           </div>
           <textarea maxLength={160} className="input min-h-[72px] resize-none" value={form.bio}
             onChange={(e) => setForm({ ...form, bio: e.target.value })} />
@@ -229,7 +231,7 @@ function Toggle({ Icon, label, on, onChange }) {
   return (
     <button onClick={onChange} className="flex w-full items-center justify-between rounded-input border border-border px-3 py-2.5 text-sm">
       <span className="flex items-center gap-2"><Icon size={15} /> {label}</span>
-      <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? 'bg-success' : 'bg-border'}`}>
+      <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? 'bg-primary' : 'bg-border'}`}>
         <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
       </span>
     </button>
