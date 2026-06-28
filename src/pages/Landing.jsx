@@ -159,7 +159,7 @@ function AnimatedHeadline({ text }) {
 }
 
 // APK download button with 3-second countdown
-function DownloadApkButton() {
+function DownloadApkButton({ className = '' }) {
   const [countdown, setCountdown] = useState(null) // null | 3 | 2 | 1 | 'done'
   const APK_URL = 'https://github.com/Sampath0411/Devsocio/releases/download/Devsocio/Devsocio.apk'
 
@@ -186,7 +186,7 @@ function DownloadApkButton() {
       whileHover={countdown === null ? { scale: 1.05 } : {}}
       whileTap={countdown === null ? { scale: 0.95 } : {}}
       disabled={countdown !== null}
-      className="btn inline-flex items-center gap-2 rounded-btn border-2 border-success/50 bg-success/10 px-6 py-2.5 text-sm font-bold text-success transition-all hover:bg-success/20 disabled:opacity-80 disabled:cursor-wait"
+      className={`btn inline-flex items-center gap-2 rounded-btn border-2 border-success/50 bg-success/10 px-6 py-2.5 text-sm font-bold text-success transition-all hover:bg-success/20 disabled:opacity-80 disabled:cursor-wait ${className}`}
     >
       {countdown === null ? (
         <>
@@ -200,6 +200,89 @@ function DownloadApkButton() {
         </>
       )}
     </motion.button>
+  )
+}
+
+// Download popup — shows app info + download CTA
+function DownloadPopup({ open, onClose }) {
+  const ref = useRef(null)
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="absolute right-0 top-full z-50 mt-2 w-72 sm:w-80 rounded-card border border-border/60 p-5 shadow-2xl"
+      style={{
+        background: 'linear-gradient(135deg, rgba(26,43,78,0.97) 0%, rgba(20,33,61,0.98) 100%)',
+        backdropFilter: 'blur(16px)',
+      }}
+    >
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full text-text-muted hover:bg-white/10 hover:text-white transition-colors"
+        aria-label="Close"
+      >
+        <span className="text-sm leading-none">×</span>
+      </button>
+
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+          style={{
+            background: 'linear-gradient(135deg, #FCA311, #E8920A)',
+            boxShadow: '0 0 20px -4px rgba(252,163,17,0.5)',
+          }}
+        >
+          <Download size={18} className="text-black" />
+        </div>
+        <div>
+          <p className="font-display text-sm font-bold text-white">DevSocio App</p>
+          <p className="text-xs text-text-muted">Android APK</p>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="space-y-1.5 text-xs text-text-muted">
+        <p className="flex items-center gap-1.5">
+          <span className="text-success">✓</span> Latest stable release
+        </p>
+        <p className="flex items-center gap-1.5">
+          <span className="text-success">✓</span> No ads · No tracking
+        </p>
+        <p className="flex items-center gap-1.5">
+          <span className="text-success">✓</span> Works offline for saved posts
+        </p>
+        <p className="flex items-center gap-1.5">
+          <span className="text-success">✓</span> Push notifications for collabs
+        </p>
+      </div>
+
+      {/* Download CTA */}
+      <div className="mt-4">
+        <DownloadApkButton className="w-full justify-center" />
+      </div>
+
+      <p className="mt-2 text-center text-xs text-text-muted">
+        ·15 MB · Requires Android 8+
+      </p>
+    </motion.div>
   )
 }
 
@@ -270,6 +353,8 @@ const TESTIMONIALS = [
 ]
 
 export default function Landing() {
+  const [showDownload, setShowDownload] = useState(false)
+
   return (
     <div className="min-h-screen overflow-hidden" style={{ background: '#000000' }}>
 
@@ -288,6 +373,18 @@ export default function Landing() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Download button + popup */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDownload((v) => !v)}
+                className="hidden items-center gap-1.5 text-sm font-medium text-text-muted hover:text-primary sm:inline-flex transition-colors"
+                aria-label="Download app"
+              >
+                <Download size={14} />
+                Download
+              </button>
+              <DownloadPopup open={showDownload} onClose={() => setShowDownload(false)} />
+            </div>
             <Link
               to="/login"
               className="hidden text-sm font-medium text-text-muted hover:text-white transition-colors sm:inline"
@@ -344,9 +441,10 @@ export default function Landing() {
               >
                 <AnimatedHeadline text="built for developers" />
               </span>
-              <span className="text-white">
-                <AnimatedHeadline text=" who ship." />
+              <span className="relative inline-block text-white ml-1">
+                <AnimatedHeadline text="who ship." />
               </span>
+              <br className="sm:hidden" />
             </h1>
 
             {/* Subtitle */}
