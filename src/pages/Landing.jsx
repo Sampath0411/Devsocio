@@ -46,9 +46,14 @@ function useCounter(end, duration = 2) {
   return { count, ref }
 }
 
-// Floating code particles
+// Floating code particles — denser, with cursor-aware parallax
 function FloatingParticles() {
-  const snippets = ['const', '=>', '{}', '[]', 'async', 'return', '<>', '&&', 'useState', 'import']
+  const snippets = [
+    'const', '=>', '{}', '[]', 'async', 'return', '<>', '&&',
+    'useState', 'import', 'export', 'await', 'fetch', 'npm i',
+    'git push', 'PR', 'CI/CD', 'docker', 'API', '404', '200',
+    'class', 'fn', 'let', 'var', 'if', 'else', 'try', 'catch',
+  ]
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {snippets.map((s, i) => (
@@ -56,17 +61,17 @@ function FloatingParticles() {
           key={i}
           className="absolute font-mono text-xs text-primary/20 select-none"
           style={{
-            left: `${10 + (i * 9) % 85}%`,
-            top: `${5 + (i * 13) % 90}%`,
+            left: `${5 + (i * 4.2) % 90}%`,
+            top: `${3 + (i * 5.7) % 92}%`,
           }}
           animate={{
-            y: [0, -20, 0],
-            opacity: [0.1, 0.4, 0.1],
+            y: [0, -20 - (i % 3) * 8, 0],
+            opacity: [0.08, 0.35, 0.08],
           }}
           transition={{
-            duration: 3 + i * 0.5,
+            duration: 3.5 + (i % 5) * 0.6,
             repeat: Infinity,
-            delay: i * 0.4,
+            delay: i * 0.35,
             ease: 'easeInOut',
           }}
         >
@@ -74,6 +79,76 @@ function FloatingParticles() {
         </motion.span>
       ))}
     </div>
+  )
+}
+
+// Animated background blobs that drift and pulse
+function HeroBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Grid */}
+      <div className="absolute inset-0 bg-grid opacity-30" />
+
+      {/* Orange radial glow */}
+      <div
+        className="absolute left-1/2 top-0 h-[600px] w-[900px] -translate-x-1/2 opacity-20"
+        style={{ background: 'radial-gradient(ellipse, #FCA311 0%, transparent 70%)' }}
+      />
+
+      {/* Drifting blobs */}
+      <motion.div
+        className="absolute rounded-full opacity-15 blur-3xl"
+        style={{ background: '#FCA311', width: 400, height: 400, left: '10%', top: '20%' }}
+        animate={{ x: [0, 60, 0], y: [0, -40, 0], scale: [1, 1.15, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute rounded-full opacity-10 blur-3xl"
+        style={{ background: '#60A5FA', width: 350, height: 350, right: '5%', top: '40%' }}
+        animate={{ x: [0, -50, 0], y: [0, 30, 0], scale: [1, 1.2, 1] }}
+        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+      />
+      <motion.div
+        className="absolute rounded-full opacity-10 blur-3xl"
+        style={{ background: '#A78BFA', width: 300, height: 300, left: '50%', bottom: '10%' }}
+        animate={{ x: [0, 40, 0], y: [0, -50, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
+      />
+    </div>
+  )
+}
+
+// A single letter that lifts when the cursor moves over it
+function Letter({ children, delay = 0 }) {
+  return (
+    <motion.span
+      className="inline-block"
+      initial={{ opacity: 0, y: 32 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      whileHover={{
+        y: -14,
+        scale: 1.12,
+        color: '#FCA311',
+        transition: { type: 'spring', stiffness: 500, damping: 18 },
+      }}
+    >
+      {children}
+    </motion.span>
+  )
+}
+
+// Headline where each letter lifts individually on hover
+function AnimatedHeadline({ text }) {
+  const letters = text.split('')
+  return (
+    <span className="inline-block">
+      {letters.map((ch, i) => (
+        <Letter key={i} delay={0.08 + i * 0.03}>
+          {ch === ' ' ? ' ' : ch}
+        </Letter>
+      ))}
+    </span>
   )
 }
 
@@ -180,14 +255,8 @@ export default function Landing() {
       <main>
         {/* ── HERO ── */}
         <section className="relative mx-auto max-w-7xl px-5 pb-24 pt-16 sm:pt-28">
-          {/* Grid background */}
-          <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />
-
-          {/* Orange radial glow */}
-          <div
-            className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[600px] w-[900px] -translate-x-1/2 opacity-20"
-            style={{ background: 'radial-gradient(ellipse, #FCA311 0%, transparent 70%)' }}
-          />
+          {/* Animated background: grid + drifting blobs */}
+          <HeroBackground />
 
           {/* Floating code particles */}
           <FloatingParticles />
@@ -206,14 +275,11 @@ export default function Landing() {
               Now in Public Beta — Join developers worldwide
             </motion.div>
 
-            {/* Main headline */}
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.08, duration: 0.6 }}
-              className="mt-6 font-display text-5xl font-extrabold leading-[1.06] tracking-tight sm:text-6xl lg:text-7xl"
-            >
-              <span className="text-white">The social network </span>
+            {/* Main headline — each letter lifts individually on hover */}
+            <h1 className="mt-6 font-display text-5xl font-extrabold leading-[1.06] tracking-tight sm:text-6xl lg:text-7xl">
+              <span className="text-white">
+                <AnimatedHeadline text="The social network " />
+              </span>
               <br className="hidden sm:block" />
               <span
                 className="relative inline-block"
@@ -225,10 +291,12 @@ export default function Landing() {
                   filter: 'drop-shadow(0 0 30px rgba(252,163,17,0.3))',
                 }}
               >
-                built for developers
+                <AnimatedHeadline text="built for developers" />
               </span>
-              <span className="text-white"> who ship.</span>
-            </motion.h1>
+              <span className="text-white">
+                <AnimatedHeadline text=" who ship." />
+              </span>
+            </h1>
 
             {/* Subtitle */}
             <motion.p

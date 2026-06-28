@@ -18,7 +18,7 @@ export default function Login() {
 
   const sendReset = async (e) => {
     e?.preventDefault()
-    if (resetting) return // guard against double-clicks
+    if (resetting) return
     setResetting(true)
     try {
       await resetPassword(resetEmail || form.email)
@@ -46,7 +46,6 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to your DevSocio account">
-      {/* OAuth buttons */}
       <div className="space-y-2">
         <motion.button
           whileHover={{ scale: 1.01 }}
@@ -70,7 +69,6 @@ export default function Login() {
 
       <Divider />
 
-      {/* Email/password form */}
       <form onSubmit={(e) => { e.preventDefault(); run(() => emailLogin(form)) }} className="space-y-3">
         <div className="relative">
           <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -105,11 +103,7 @@ export default function Login() {
 
         <div className="flex items-center justify-between text-xs text-text-muted">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded accent-primary"
-              defaultChecked
-            />
+            <input type="checkbox" className="h-3.5 w-3.5 rounded accent-primary" defaultChecked />
             Remember me
           </label>
           <button
@@ -137,7 +131,6 @@ export default function Login() {
         </motion.button>
       </form>
 
-      {/* Password reset inline */}
       {showReset && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -146,9 +139,7 @@ export default function Login() {
           className="space-y-2 rounded-card border border-primary/25 p-3"
           style={{ background: 'rgba(252,163,17,0.05)' }}
         >
-          <p className="text-xs text-text-muted">
-            Enter your email and we'll send a reset link.
-          </p>
+          <p className="text-xs text-text-muted">Enter your email and we'll send a reset link.</p>
           <div className="flex gap-2">
             <input
               className="input text-sm"
@@ -171,57 +162,94 @@ export default function Login() {
 
       <p className="text-center text-sm text-text-muted">
         New here?{' '}
-        <Link to="/signup" className="font-bold text-primary hover:underline">
-          Join DevSocio
-        </Link>
+        <Link to="/signup" className="font-bold text-primary hover:underline">Join DevSocio</Link>
       </p>
     </AuthShell>
   )
 }
 
-// Shared auth shell
+// Shared auth shell — full-width layout with side-by-side on desktop
 export function AuthShell({ title, subtitle, children }) {
   return (
     <div
-      className="flex min-h-screen items-center justify-center px-5 py-10"
+      className="relative flex min-h-screen flex-col-reverse md:flex-row"
       style={{ background: '#000000' }}
     >
-      {/* Background glow */}
+      {/* Left decorative panel — hidden on mobile */}
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-grid opacity-20" />
       <div
-        className="pointer-events-none fixed left-1/2 top-1/4 -z-10 h-[500px] w-[500px] -translate-x-1/2 opacity-15 blur-3xl"
+        className="pointer-events-none fixed left-1/4 top-1/4 -z-10 hidden h-[500px] w-[500px] -translate-x-1/2 opacity-20 blur-3xl md:block"
         style={{ background: 'radial-gradient(closest-side, #FCA311, transparent)' }}
       />
-      {/* Grid pattern */}
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-grid opacity-20" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-sm space-y-6"
-      >
-        {/* Logo */}
-        <Link to="/" className="flex justify-center">
-          <DevSocioLogo size="lg" />
+      {/* Brand / left side */}
+      <div className="hidden w-1/2 flex-col items-center justify-center px-16 md:flex">
+        <Link to="/" className="mb-8">
+          <DevSocioLogo size="xl" />
         </Link>
-
-        {/* Title */}
-        <div className="text-center">
-          <h1 className="font-display text-2xl font-bold text-white">{title}</h1>
-          <p className="mt-1.5 text-sm text-text-muted">{subtitle}</p>
-        </div>
-
-        {/* Content card */}
-        <div
-          className="rounded-2xl border border-border p-6 space-y-4 shadow-2xl"
-          style={{
-            background: 'linear-gradient(135deg, rgba(26,43,78,0.8) 0%, rgba(20,33,61,0.95) 100%)',
-            boxShadow: '0 24px 64px -12px rgba(0,0,0,0.8), 0 0 0 1px rgba(252,163,17,0.06)',
-          }}
+        <motion.h2
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="font-display text-4xl font-extrabold leading-tight text-white lg:text-5xl"
         >
-          {children}
+          Where <span style={{ color: '#FCA311' }}>developers</span>
+          <br /> live online.
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mt-4 max-w-md text-lg text-text-muted"
+        >
+          Share your builds. Find collaborators.
+          Get AI feedback. Earn credits.
+        </motion.p>
+        {/* Floating code snippets decoration */}
+        <div className="mt-12 flex flex-wrap gap-x-6 gap-y-3 opacity-30">
+          {['const', '=>', 'async', '<Code/>', 'useState()', 'ship()', 'git push', 'PR merged'].map((s, i) => (
+            <motion.span
+              key={i}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 0.4, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 + i * 0.07 }}
+              className="font-mono text-sm text-primary"
+            >
+              {s}
+            </motion.span>
+          ))}
         </div>
-      </motion.div>
+      </div>
+
+      {/* Right side — form card */}
+      <div className="flex flex-1 items-center justify-center px-5 py-12 md:px-16 lg:px-24">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md space-y-6"
+        >
+          {/* Mobile logo (md:hidden) */}
+          <Link to="/" className="flex justify-center md:hidden">
+            <DevSocioLogo size="lg" />
+          </Link>
+
+          <div className="text-center">
+            <h1 className="font-display text-2xl font-bold text-white">{title}</h1>
+            <p className="mt-1.5 text-sm text-text-muted">{subtitle}</p>
+          </div>
+
+          <div
+            className="rounded-2xl border border-border p-6 space-y-4 shadow-2xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(26,43,78,0.8) 0%, rgba(20,33,61,0.95) 100%)',
+              boxShadow: '0 24px 64px -12px rgba(0,0,0,0.8), 0 0 0 1px rgba(252,163,17,0.06)',
+            }}
+          >
+            {children}
+          </div>
+        </motion.div>
+      </div>
     </div>
   )
 }
