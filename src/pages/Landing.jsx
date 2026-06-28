@@ -124,14 +124,13 @@ function Letter({ children, delay = 0 }) {
     <motion.span
       className="inline-block will-change-transform"
       style={{ color: 'inherit' }}
-      initial={{ opacity: 0, y: 32 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      transition={{ duration: 0.4, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={{
-        y: -16,
-        scale: 1.15,
+        y: -10,
+        scale: 1.12,
         color: '#FCA311',
-        textShadow: '0 0 24px rgba(252,163,17,0.6)',
         transition: { type: 'spring', stiffness: 500, damping: 18 },
       }}
     >
@@ -424,7 +423,7 @@ export default function Landing() {
             </motion.div>
 
             {/* Main headline — each letter lifts individually on hover */}
-            <h1 className="mt-6 font-display text-5xl font-extrabold leading-[1.06] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="mt-6 overflow-visible font-display text-5xl font-extrabold leading-[1.06] tracking-tight sm:text-6xl lg:text-7xl">
               <span className="text-white">
                 <AnimatedHeadline text="The social network " />
               </span>
@@ -436,7 +435,6 @@ export default function Landing() {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: 'drop-shadow(0 0 30px rgba(252,163,17,0.3))',
                 }}
               >
                 <AnimatedHeadline text="built for developers" />
@@ -446,6 +444,13 @@ export default function Landing() {
               </span>
               <br className="sm:hidden" />
             </h1>
+
+            {/* Decorative glow behind the headline (doesn't affect text rendering) */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-24 -z-10 h-40 w-[600px] -translate-x-1/2 opacity-30 sm:top-28"
+              style={{ background: 'radial-gradient(ellipse, #FCA311 0%, transparent 70%)' }}
+            />
 
             {/* Subtitle */}
             <motion.p
