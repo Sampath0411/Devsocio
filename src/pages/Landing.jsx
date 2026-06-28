@@ -119,17 +119,14 @@ function HeroBackground() {
 }
 
 // A single letter that lifts — stays visible, springs up + gold on hover
-function Letter({ children, delay = 0 }) {
+function Letter({ children }) {
   return (
     <motion.span
-      className="inline-block will-change-transform"
+      className="inline-block"
       style={{ color: 'inherit' }}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={{
-        y: -10,
-        scale: 1.12,
+        y: -8,
+        scale: 1.1,
         color: '#FCA311',
         transition: { type: 'spring', stiffness: 500, damping: 18 },
       }}
@@ -147,7 +144,7 @@ function AnimatedHeadline({ text }) {
       {words.map((word, i) => (
         <span key={i} className="inline-block whitespace-nowrap mr-[0.3em]">
           {word.split('').map((ch, j) => (
-            <Letter key={j} delay={0.08 + (i * 3 + j) * 0.03}>
+            <Letter key={j}>
               {ch}
             </Letter>
           ))}
