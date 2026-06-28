@@ -13,16 +13,21 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
   const [showReset, setShowReset] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
+  const [resetting, setResetting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const sendReset = async (e) => {
     e?.preventDefault()
+    if (resetting) return // guard against double-clicks
+    setResetting(true)
     try {
       await resetPassword(resetEmail || form.email)
       toast('Reset link sent — check your email', { tone: 'success' })
       setShowReset(false)
     } catch (err) {
       toast(authErrorMessage(err), { tone: 'warning' })
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -155,10 +160,10 @@ export default function Login() {
             <button
               type="button"
               onClick={sendReset}
-              disabled={!resetEmail.trim()}
+              disabled={!resetEmail.trim() || resetting}
               className="btn-primary shrink-0 text-sm !px-3"
             >
-              Send
+              {resetting ? 'Sending…' : 'Send'}
             </button>
           </div>
         </motion.div>

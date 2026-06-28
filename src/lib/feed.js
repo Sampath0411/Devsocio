@@ -25,7 +25,8 @@ export function scorePost(post, meUid, following = {}, myStack = []) {
   // Own posts: slight deprioritize (you've already seen your own content)
   if (post.authorUid === meUid) score -= 30
 
-  return score
+  // Clamp so even very old own posts don't sort below everything.
+  return Math.max(0, score)
 }
 
 export function sortFeed(posts, meUid, following, myStack) {

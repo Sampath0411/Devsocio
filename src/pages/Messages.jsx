@@ -143,14 +143,20 @@ export default function Messages() {
   const threadEndRef = useRef(null)
   const textareaRef = useRef(null)
 
-  // Resolve other participant
+  // Resolve other participant — looks up the user directory to get the
+  // username so profile links work. Falls back gracefully if the user
+  // isn't in the local directory yet (e.g. new account).
   const party = useMemo(() => {
     const byUid = Object.fromEntries((users || []).map((u) => [u.uid, u]))
     return (c) => {
       if (!c) return null
       if (c.user) return c.user
       const otherUid = (c.members || []).find((m) => m !== firebaseUser?.uid)
-      return byUid[otherUid] || { uid: otherUid, displayName: 'Developer', username: otherUid, avatar: undefined }
+      if (!otherUid) return null
+      const found = byUid[otherUid]
+      if (found) return found
+      // Fallback: use a placeholder that won't crash the profile link.
+      return { uid: otherUid, displayName: 'Developer', username: null, avatar: undefined }
     }
   }, [users, firebaseUser])
 

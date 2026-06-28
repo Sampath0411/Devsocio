@@ -111,20 +111,39 @@ export default function App() {
       const mine = posts.filter((p) => p.authorUid === u.uid)
       const set = claimedMilestones.current
       for (const p of mine) {
+        // Only claim if the server hasn't already paid it AND we haven't
+        // already attempted it in this session. The client-side check
+        // is a UX optimization; the server transaction is authoritative.
         if (p.likes >= 10 && !p.milestone10Paid && !set.has(p.postId + '_10')) {
           set.add(p.postId + '_10')
           import('./lib/credits').then(({ claimPostMilestone }) =>
-            claimPostMilestone('post_10_likes', p.postId).catch(() => {
-              set.delete(p.postId + '_10')
-            })
+            claimPostMilestone('post_10_likes', p.postId)
+              .then((r) => {
+                // If the server awarded credits, keep the entry in `set` so
+                // we don't spam the endpoint.
+                if (r?.awarded) {
+                  // entry stays in set forever — milestone already claimed
+                } else {
+                  // Server rejected (not author, already paid, etc.) — remove
+                  // so we can retry later in case of stale snapshot.
+                  set.delete(p.postId + '_10')
+                }
+              })
+              .catch(() => {
+                set.delete(p.postId + '_10') // retry on network error
+              })
           )
         }
         if (p.likes >= 50 && !p.milestone50Paid && !set.has(p.postId + '_50')) {
           set.add(p.postId + '_50')
           import('./lib/credits').then(({ claimPostMilestone }) =>
-            claimPostMilestone('post_50_likes', p.postId).catch(() => {
-              set.delete(p.postId + '_50')
-            })
+            claimPostMilestone('post_50_likes', p.postId)
+              .then((r) => {
+                if (!r?.awarded) set.delete(p.postId + '_50')
+              })
+              .catch(() => {
+                set.delete(p.postId + '_50')
+              })
           )
         }
       }
@@ -215,7 +234,14 @@ export default function App() {
       {showTour && (
         <OnboardingTour onDone={() => {
           setShowTour(false)
-          if (auth.currentUser) markOnboardingDone(auth.currentUser.uid)
+          // Mark done optimistically — if the write fails, the tour stays
+          // hidden for this session and will retry on next login.
+          if (auth.currentUser) {
+            markOnboardingDone(auth.currentUser.uid).catch(() => {
+              // On failure, re-show the tour on next mount by NOT marking done.
+              // The user can still proceed; the tour will reappear next time.
+            })
+          }
         }} />
       )}
 

@@ -11,7 +11,8 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { auth, db, googleProvider, githubProvider } from '../firebase'
 
 // Only this account can see the Admin panel (PRD §9 — ADMIN role).
-export const ADMIN_EMAIL = 'sampathlox@gmail.com'
+// Override via VITE_ADMIN_EMAIL env var; falls back to the hardcoded default.
+export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'sampathlox@gmail.com'
 export const isAdmin = (user) =>
   !!user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
 

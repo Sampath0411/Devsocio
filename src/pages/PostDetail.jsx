@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import PostCard from '../components/PostCard'
 import { Avatar } from '../components/ui'
+import { useToast } from '../components/Toast'
 import { subscribeComments, addComment, setCommentLike, subscribeMyCommentLikes, pushNotification, parseMentions } from '../lib/db'
 import { clean } from '../lib/sanitize'
 import { ChevronLeft, Heart, Send } from '../components/icons'
@@ -32,6 +33,7 @@ export default function PostDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { posts, user, firebaseUser, users } = useStore()
+  const toast = useToast()
   const post = posts.find((p) => p.postId === id)
 
   const [comments, setComments] = useState([])
@@ -85,8 +87,12 @@ export default function PostDetail() {
           })
         }
       }
-    } catch {
-      setComments((c) => [...c, { id: 'local_' + c.length, author: user, text, parentId }])
+    } catch (err) {
+      // Surface the error to the user instead of showing a fake local comment
+      // that disappears on reload and gives no feedback.
+      toast('Could not post comment — still offline? Try again.', { tone: 'warning' })
+      // eslint-disable-next-line no-console
+      console.warn('[PostDetail] addComment failed:', err?.message)
     }
   }
 

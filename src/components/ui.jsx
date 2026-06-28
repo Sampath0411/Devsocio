@@ -15,8 +15,19 @@ const PLATFORM_COLOR = {
   instagram: '#E1306C', youtube: '#FF0000', devto: '#8888AA', portfolio: '#439a86', link: '#439a86',
 }
 
+// SECURITY: Only allow safe URL schemes to prevent javascript: / data: XSS.
+function isSafeUrl(url) {
+  if (!url) return false
+  try {
+    const parsed = new URL(url)
+    return ['http:', 'https:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+
 export function SocialLinks({ links }) {
-  const entries = Object.values(links || {}).filter((l) => l && l.url)
+  const entries = Object.values(links || {}).filter((l) => l && l.url && isSafeUrl(l.url))
   if (!entries.length) return null
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -24,7 +35,7 @@ export function SocialLinks({ links }) {
         const Icon = PLATFORM_ICON[l.platform] || Link2
         const color = PLATFORM_COLOR[l.platform] || '#439a86'
         return (
-          <a key={l.platform + l.url} href={l.url} target="_blank" rel="noreferrer"
+          <a key={l.platform + l.url} href={l.url} target="_blank" rel="noopener noreferrer"
             className="pill border border-border hover:border-primary/50" style={{ color }}
             title={PLATFORM_LABEL[l.platform] || 'Link'}>
             <Icon size={13} /> {l.handle || PLATFORM_LABEL[l.platform]}

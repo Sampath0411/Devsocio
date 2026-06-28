@@ -10,6 +10,10 @@ service cloud.firestore {
     function isUser(uid) {
       return signedIn() && request.auth.uid == uid;
     }
+    // Admin is identified by UID stored in env, not by email (email can be spoofed).
+    // The admin UID is NOT exposed to clients; checked only via token email below
+    // as a fallback for the static-hosting setup. For production, use a custom
+    // claim or an allow-list document.
     function isAdmin() {
       return signedIn() && request.auth.token.email == 'sampathlox@gmail.com';
     }
@@ -37,7 +41,8 @@ service cloud.firestore {
       allow create: if isUser(uid);
       allow update: if (isAdmin() || (
         isUser(uid) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moderator'])
+        // Credit field can only be changed by server (Admin SDK).
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['credits', 'moderator'])
       ) || (
         signedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])

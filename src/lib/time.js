@@ -1,8 +1,10 @@
 // Compact number formatting: 1000 -> "1k", 1500 -> "1.5k", 2_000_000 -> "2M".
 // Guards against corrupted/huge values so the UI never shows "1e+158".
+// Returns null for missing/undefined values so the UI can show a placeholder.
 export function formatNum(value) {
+  if (value === undefined || value === null) return null
   let n = Number(value)
-  if (!Number.isFinite(n)) return '0'
+  if (!Number.isFinite(n)) return null
   const sign = n < 0 ? '-' : ''
   n = Math.abs(n)
   const trim = (x) => x.toFixed(1).replace(/\.0$/, '')

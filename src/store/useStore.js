@@ -1,12 +1,10 @@
 import { create } from 'zustand'
 import {
-  changeCredits,
   updateProfileDoc,
   setPostLike,
   setPostSave,
   setFollow,
   pushNotification,
-  logCreditTx,
 } from '../lib/db'
 
 // Global state. Auth/profile/credits AND the social graph (likes/saves/follows)
@@ -24,35 +22,14 @@ export const useStore = create((set, get) => ({
   setProfile: (p) => set({ user: p }),
   clearAuth: () => set({ firebaseUser: null, user: null, likes: {}, saved: {}, following: {} }),
 
-  // ---- credits (PRD §5) — write-through to Firestore ----
-  addCredits: async (amount) => {
-    const u = get().firebaseUser
-    // optimistic local bump; onSnapshot will reconcile
-    set((s) => (s.user ? { user: { ...s.user, credits: (s.user.credits || 0) + amount } } : {}))
-    if (u) {
-      try {
-        await changeCredits(u.uid, amount)
-        if (amount > 0) logCreditTx(u.uid, { amount, type: 'earn', description: `Credits earned (+${amount})` })
-      } catch {
-        /* offline / rules — keep optimistic value */
-      }
-    }
-  },
-  spendCredits: async (amount) => {
-    const profile = get().user
-    const u = get().firebaseUser
-    if (!profile || profile.credits < amount) return false
-    set({ user: { ...profile, credits: profile.credits - amount } })
-    if (u) {
-      try {
-        await changeCredits(u.uid, -amount)
-        logCreditTx(u.uid, { amount: -amount, type: 'spend', description: `Credits spent (-${amount})` })
-      } catch {
-        /* ignore */
-      }
-    }
-    return true
-  },
+  // ---- credits (PRD 5) — client-side credit writes REMOVED ----
+  // All credit changes now go through /api/credits (serverless), which uses
+  // the Admin SDK to atomically update Firestore. The profile onSnapshot
+  // subscription in App.jsx will propagate the authoritative balance to the
+  // store automatically. These stubs remain so existing callers (toast
+  // messages, navigation) continue to work — they no longer write credits.
+  addCredits: async (_amount) => { /* no-op: credits are server-authoritative */ },
+  spendCredits: async (_amount) => { /* no-op: credits are server-authoritative */ return false },
 
   saveProfileFields: async (fields) => {
     const u = get().firebaseUser

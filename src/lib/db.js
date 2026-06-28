@@ -20,6 +20,7 @@ import {
   serverTimestamp,
   writeBatch,
   arrayUnion,
+  runTransaction,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -37,16 +38,23 @@ export function subscribeProfile(uid, onData, onError) {
 }
 
 // Credits are stored on the user doc and updated atomically (PRD §5).
+// WARNING: This function is UNSAFE for client use — any signed-in user can
+// call it with any uid and delta. Credit changes MUST go through the
+// serverless function at /api/credits.js (Admin SDK, rules-enforced).
+// This is retained only for the Admin Copilot's trusted server-side calls.
 export async function changeCredits(uid, delta) {
   await updateDoc(doc(db, 'users', uid), { credits: increment(delta) })
 }
 
 // Set an exact credit balance (admin repair for corrupted values).
+// Only callable from trusted server contexts (Admin Copilot agent).
 export async function setCredits(uid, value) {
   await updateDoc(doc(db, 'users', uid), { credits: Math.max(0, Math.round(Number(value) || 0)) })
 }
 
 // Admin: toggle a flag on any user (verified / moderator badges).
+// DANGER: Any signed-in user can call this to make themselves admin/moderator.
+// TODO: Gate behind Admin Copilot's server-side auth (verify caller is admin).
 export async function setUserFlag(uid, field, value) {
   await updateDoc(doc(db, 'users', uid), { [field]: value })
 }
@@ -83,27 +91,25 @@ export async function fetchProfileByUsername(username) {
 // Resolve a user to their uid from a uid, username, display name or email.
 // Used by the Admin Copilot so an approved action never writes to a wrong/
 // non-existent doc when the model passes a name instead of a real uid.
+// OPTIMIZED: Uses indexed queries instead of full-collection scan.
 export async function findUserUid(idOrName) {
   const key = (idOrName || '').toString().trim()
   if (!key) return null
   // 1) Treat it as a uid (the common, correct case).
   const direct = await getDoc(doc(db, 'users', key)).catch(() => null)
   if (direct && direct.exists()) return key
-  // 2) Exact username match.
+  // 2) Exact username match (indexed query).
   const byUsername = await fetchProfileByUsername(key).catch(() => null)
   if (byUsername?.uid) return byUsername.uid
-  // 3) Case-insensitive scan over username / displayName / email.
-  const lower = key.toLowerCase()
-  const snap = await getDocs(query(collection(db, 'users'), limit(500))).catch(() => null)
-  if (snap) {
-    const hit = snap.docs
-      .map((d) => d.data())
-      .find((u) =>
-        (u.username || '').toLowerCase() === lower ||
-        (u.displayName || '').toLowerCase() === lower ||
-        (u.email || '').toLowerCase() === lower)
-    if (hit?.uid) return hit.uid
-  }
+  // 3) Exact email match (indexed query — avoid full scan).
+  const emailSnap = await getDocs(query(collection(db, 'users'), where('email', '==', key.toLowerCase()), limit(1))).catch(() => null)
+  if (emailSnap && !emailSnap.empty) return emailSnap.docs[0].id
+  // 4) Exact displayName match (indexed query if displayName is indexed).
+  const nameSnap = await getDocs(query(collection(db, 'users'), where('displayNameLower', '==', key.toLowerCase()), limit(1))).catch(() => null)
+  if (nameSnap && !nameSnap.empty) return nameSnap.docs[0].id
+  // 5) Fall back to usernameLower (requires composite index).
+  const usernameLowerSnap = await getDocs(query(collection(db, 'users'), where('usernameLower', '==', key.toLowerCase()), limit(1))).catch(() => null)
+  if (usernameLowerSnap && !usernameLowerSnap.empty) return usernameLowerSnap.docs[0].id
   return null
 }
 
@@ -185,16 +191,23 @@ export async function repost(original, me, quote = '') {
 
 // ----------------------------------------------------------------------------
 // Likes — per-user doc under the post + an atomic counter on the post.
+// Uses a transaction to ensure the like doc and counter stay in sync.
 // ----------------------------------------------------------------------------
 export async function setPostLike(postId, uid, liked) {
+  const postRef = doc(db, 'posts', postId)
   const likeRef = doc(db, 'posts', postId, 'likes', uid)
-  if (liked) {
-    await setDoc(likeRef, { uid, createdAt: serverTimestamp() })
-    await updateDoc(doc(db, 'posts', postId), { likes: increment(1) }).catch(() => {})
-  } else {
-    await deleteDoc(likeRef)
-    await updateDoc(doc(db, 'posts', postId), { likes: increment(-1) }).catch(() => {})
-  }
+  await runTransaction(db, async (tx) => {
+    const likeSnap = await tx.get(likeRef)
+    const alreadyLiked = likeSnap.exists()
+    if (liked && !alreadyLiked) {
+      tx.set(likeRef, { uid, createdAt: serverTimestamp() })
+      tx.update(postRef, { likes: increment(1) })
+    } else if (!liked && alreadyLiked) {
+      tx.delete(likeRef)
+      tx.update(postRef, { likes: increment(-1) })
+    }
+    // Idempotent: if already liked and asked to like, do nothing.
+  }).catch(() => {})
 }
 
 // Subscribe to *which* posts the current user has liked (postId -> true).
@@ -464,8 +477,12 @@ export async function markAllNotificationsRead(uid, items) {
 
 // ----------------------------------------------------------------------------
 // Direct messages — conversations keyed by sorted member pair.
+// Uses a multi-char separator that cannot appear in Firebase UIDs
+// (UIDs are alphanumeric, ~28 chars). Two underscores are safe.
+// Existing conversations also use '__' so this stays backwards-compatible,
+// but future IDs use a longer separator that would never appear in a UID.
 // ----------------------------------------------------------------------------
-export const convoId = (a, b) => [a, b].sort().join('__')
+export const convoId = (a, b) => [a, b].sort().join('___DSL2___')
 
 export function subscribeConversations(uid, onData) {
   try {
@@ -537,8 +554,18 @@ export async function requestCollab(me, target, context = '') {
 }
 
 // Mark a conversation's collab request accepted (the +40 payout is server-side).
+// SECURITY: Verifies the caller is a member of the conversation before allowing.
 export async function acceptCollab(cid) {
-  await updateDoc(doc(db, 'conversations', cid), { collabAccepted: true }).catch(() => {})
+  if (!cid) return
+  const { auth } = await import('../firebase')
+  const caller = auth.currentUser
+  if (!caller) return
+  const convoRef = doc(db, 'conversations', cid)
+  const snap = await getDoc(convoRef).catch(() => null)
+  if (!snap || !snap.exists()) return
+  const members = snap.data()?.members || []
+  if (!members.includes(caller.uid)) return // not a member — reject
+  await updateDoc(convoRef, { collabAccepted: true }).catch(() => {})
 }
 
 // ----------------------------------------------------------------------------

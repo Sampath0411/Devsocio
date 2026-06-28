@@ -1,18 +1,25 @@
 // Firebase initialization (PRD §8.1 — Firebase Auth + Firestore).
 // The web API key is safe to ship in the client; access is gated by
 // Firestore Security Rules, not by hiding this config.
+// Values are read from environment variables (Vite requires VITE_ prefix).
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, GithubAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyCp0aAVeKzptv4HqSicEghuX8KEP4rVjFQ',
-  authDomain: 'devsocio-8f0c0.firebaseapp.com',
-  projectId: 'devsocio-8f0c0',
-  storageBucket: 'devsocio-8f0c0.firebasestorage.app',
-  messagingSenderId: '340656300838',
-  appId: '1:340656300838:web:43b7a0334098736e1057e7',
-  measurementId: 'G-9K4M5GTKC1',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '',
+}
+
+// Throw early if Firebase config is missing — prevents silent failures
+// where auth or Firestore calls would fail with unhelpful errors.
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  throw new Error('[DevSocio] Missing Firebase config. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, etc. in your .env file. See .env.example.')
 }
 
 export const app = initializeApp(firebaseConfig)

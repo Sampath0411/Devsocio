@@ -78,10 +78,12 @@ export default function Credits() {
       } else {
         toast(`+${awarded} daily credits — ${streak} day streak 🔥`, { icon: Coins })
       }
-      addCredits(0) // triggers a re-sync via onSnapshot
+      // Credits are updated by the server; the onSnapshot subscription will
+      // automatically reflect the new balance. No local write needed.
     } catch {
+      // Server unavailable — fall back to a local optimistic bump.
       addCredits(5)
-      toast('+5 daily login bonus!', { icon: Coins })
+      toast('+5 daily login bonus! (offline mode)', { icon: Coins })
     }
   }
 

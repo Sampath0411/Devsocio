@@ -7,6 +7,9 @@ dist
 .env.*
 !.env.example
 
+# Build output / analysis reports
+DevSocio_CODEBASE_ANALYSIS_REPORT.md
+
 # Never commit secrets / service-account keys
 *firebase-adminsdk*.json
 *serviceAccount*.json
