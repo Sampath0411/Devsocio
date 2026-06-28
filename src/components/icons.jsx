@@ -70,6 +70,7 @@ export {
   ChevronRight,
   Loader2,
   Download,
+  ExternalLink,
 } from 'lucide-react'
 
 // ---- Brand marks (lucide dropped brand icons) ----

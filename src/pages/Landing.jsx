@@ -7,7 +7,7 @@ import DevSocioLogo from '../components/Logo'
 import {
   Code2, Bot, Coins, Lightbulb, Rocket,
   Shield, ArrowRight, Check, Heart, Handshake,
-  GithubMark, Zap, Star, Users, Download, Loader2,
+  GithubMark, Zap, Star, Users, Download, Loader2, ExternalLink,
 } from '../components/icons'
 
 // Animation helpers
@@ -158,6 +158,7 @@ function AnimatedHeadline({ text }) {
 function DownloadApkButton({ className = '' }) {
   const [countdown, setCountdown] = useState(null) // null | 3 | 2 | 1 | 'done'
   const APK_URL = 'https://github.com/Sampath0411/Devsocio/releases/download/Devsocio/Devsocio.apk'
+  const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.devsocio.app'
 
   const handleDownload = () => {
     if (countdown !== null) return // already running
@@ -274,6 +275,20 @@ function DownloadPopup({ open, onClose }) {
       <div className="mt-4">
         <DownloadApkButton className="w-full justify-center" />
       </div>
+
+      {/* Google Play link */}
+      <a
+        href="https://play.google.com/store/apps/details?id=com.devsocio.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-btn border border-border/60 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-white/10 hover:border-primary/40"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 0 1 0 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
+        </svg>
+        Get it on Google Play
+        <ExternalLink size={12} className="text-text-muted" />
+      </a>
 
       <p className="mt-2 text-center text-xs text-text-muted">
         ·15 MB · Requires Android 8+
