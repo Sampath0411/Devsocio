@@ -7,7 +7,7 @@ import DevSocioLogo from '../components/Logo'
 import {
   Code2, Bot, Coins, Lightbulb, Rocket,
   Shield, ArrowRight, Check, Heart, Handshake,
-  GithubMark, Zap, Star, Users,
+  GithubMark, Zap, Star, Users, Download, Loader2,
 } from '../components/icons'
 
 // Animation helpers
@@ -118,37 +118,88 @@ function HeroBackground() {
   )
 }
 
-// A single letter that lifts when the cursor moves over it
+// A single letter that lifts — stays visible, springs up + gold on hover
 function Letter({ children, delay = 0 }) {
   return (
     <motion.span
-      className="inline-block"
+      className="inline-block will-change-transform"
+      style={{ color: 'inherit' }}
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={{
-        y: -14,
-        scale: 1.12,
+        y: -16,
+        scale: 1.15,
         color: '#FCA311',
+        textShadow: '0 0 24px rgba(252,163,17,0.6)',
         transition: { type: 'spring', stiffness: 500, damping: 18 },
       }}
     >
-      {children}
+      {children === ' ' ? ' ' : children}
     </motion.span>
   )
 }
 
-// Headline where each letter lifts individually on hover
+// Headline where each word lifts as a unit on hover (feels more natural than per-letter)
 function AnimatedHeadline({ text }) {
-  const letters = text.split('')
+  const words = text.split(' ')
   return (
-    <span className="inline-block">
-      {letters.map((ch, i) => (
-        <Letter key={i} delay={0.08 + i * 0.03}>
-          {ch === ' ' ? ' ' : ch}
-        </Letter>
+    <span>
+      {words.map((word, i) => (
+        <span key={i} className="inline-block whitespace-nowrap mr-[0.3em]">
+          {word.split('').map((ch, j) => (
+            <Letter key={j} delay={0.08 + (i * 3 + j) * 0.03}>
+              {ch}
+            </Letter>
+          ))}
+        </span>
       ))}
     </span>
+  )
+}
+
+// APK download button with 3-second countdown
+function DownloadApkButton() {
+  const [countdown, setCountdown] = useState(null) // null | 3 | 2 | 1 | 'done'
+  const APK_URL = 'https://github.com/Sampath0411/Devsocio/releases/download/Devsocio/Devsocio.apk'
+
+  const handleDownload = () => {
+    if (countdown !== null) return // already running
+    setCountdown(3)
+  }
+
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown <= 0) {
+      // Open the link
+      window.open(APK_URL, '_blank', 'noopener,noreferrer')
+      setCountdown(null)
+      return
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
+
+  return (
+    <motion.button
+      onClick={handleDownload}
+      whileHover={countdown === null ? { scale: 1.05 } : {}}
+      whileTap={countdown === null ? { scale: 0.95 } : {}}
+      disabled={countdown !== null}
+      className="btn inline-flex items-center gap-2 rounded-btn border-2 border-success/50 bg-success/10 px-6 py-2.5 text-sm font-bold text-success transition-all hover:bg-success/20 disabled:opacity-80 disabled:cursor-wait"
+    >
+      {countdown === null ? (
+        <>
+          <Download size={16} />
+          Download APK (Android)
+        </>
+      ) : (
+        <>
+          <Loader2 size={16} className="animate-spin" />
+          Starting in {countdown}…
+        </>
+      )}
+    </motion.button>
   )
 }
 
@@ -600,6 +651,23 @@ export default function Landing() {
                     Explore Community <ArrowRight size={16} />
                   </Link>
                 </motion.div>
+              </div>
+
+              {/* Mobile ready badge + download */}
+              <div className="mt-8 flex flex-col items-center gap-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="inline-flex items-center gap-3 rounded-xs border border-success/40 bg-success/10 px-4 py-2 text-sm text-success"
+                >
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+                  </span>
+                  Mobile version ready — download APK
+                </motion.div>
+                <DownloadApkButton />
               </div>
 
               <p className="mt-6 text-xs text-text-muted">
