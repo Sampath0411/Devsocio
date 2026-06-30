@@ -167,10 +167,12 @@ export default function Messages() {
   }, [firebaseUser])
 
   // Deep link: /messages/<uid> or /messages/<conversationId>
+  // convoId uses '___DSL2___' as the separator (see lib/db.js convoId).
   useEffect(() => {
     if (!firebaseUser || !routeParam) return
-    const otherUid = routeParam.includes('__')
-      ? routeParam.split('__').find((x) => x !== firebaseUser.uid)
+    const SEP = '___DSL2___'
+    const otherUid = routeParam.includes(SEP)
+      ? routeParam.split(SEP).find((x) => x !== firebaseUser.uid)
       : routeParam
     if (otherUid && otherUid !== firebaseUser.uid) {
       setActiveId(convoId(firebaseUser.uid, otherUid))

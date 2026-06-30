@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
@@ -31,17 +30,20 @@ export default function Settings() {
   const toast = useToast()
   const navigate = useNavigate()
 
-  const [prefs, setPrefs] = useState({
+  // Defaults applied when the field isn't on the profile yet. Reading
+  // directly from `user` (kept fresh by the live profile subscription) avoids
+  // the stale-init bug where toggles would render their defaults on a cold
+  // open and then write the wrong value back to Firestore.
+  const prefs = {
     showOnline: user?.showOnline ?? true,
     allowDMs: user?.allowDMs ?? true,
     publicProfile: user?.publicProfile ?? true,
     emailNotifs: user?.emailNotifs ?? false,
-  })
+  }
 
   const toggle = (key) => {
-    const next = { ...prefs, [key]: !prefs[key] }
-    setPrefs(next)
-    saveProfileFields({ [key]: next[key] })
+    if (!user) return
+    saveProfileFields({ [key]: !prefs[key] })
   }
 
   const doLogout = async () => {

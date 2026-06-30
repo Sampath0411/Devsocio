@@ -101,11 +101,7 @@ export default function Login() {
           </button>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-text-muted">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="h-3.5 w-3.5 rounded accent-primary" defaultChecked />
-            Remember me
-          </label>
+        <div className="flex items-center justify-end text-xs text-text-muted">
           <button
             type="button"
             className="hover:text-primary transition-colors"

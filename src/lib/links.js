@@ -14,7 +14,14 @@ export function detectLink(raw) {
   }
   const seg = path.split('/')[0] || ''
   if (host.includes('github.com')) return { platform: 'github', url, handle: seg || 'github' }
-  if (host.includes('linkedin.com')) return { platform: 'linkedin', url, handle: seg.replace(/^in$/, '') ? path.split('/')[1] || 'profile' : 'profile' }
+  if (host.includes('linkedin.com')) {
+    // linkedin.com/in/<handle>, /company/<name>, /school/<name>
+    const parts = path.split('/')
+    const handle = (parts[0] === 'in' || parts[0] === 'company' || parts[0] === 'school')
+      ? (parts[1] || 'linkedin')
+      : (parts[0] || 'linkedin')
+    return { platform: 'linkedin', url, handle }
+  }
   if (host.includes('twitter.com') || host.includes('x.com')) return { platform: 'twitter', url, handle: seg || 'x' }
   if (host.includes('instagram.com')) return { platform: 'instagram', url, handle: seg || 'instagram' }
   if (host.includes('youtube.com') || host.includes('youtu.be')) return { platform: 'youtube', url, handle: seg || 'youtube' }

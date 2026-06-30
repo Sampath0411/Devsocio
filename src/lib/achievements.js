@@ -1,7 +1,9 @@
 // Derive a developer's earned achievement badges from their profile stats.
 // Pure function — no storage needed; recomputed from live data.
 export function achievementsFor(user = {}, livePostCount = 0) {
-  const posts = user.postsCount ?? livePostCount ?? 0
+  // Prefer the persisted counter when it's a finite number (incl. 0); fall
+  // back to the live computed count only when the counter is missing.
+  const posts = Number.isFinite(user.postsCount) ? user.postsCount : (livePostCount || 0)
   const followers = Math.max(0, user.followersCount || 0)
   const credits = user.credits || 0
   const out = []

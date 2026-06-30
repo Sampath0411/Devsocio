@@ -186,6 +186,26 @@ export default async function handler(req, res) {
       res.status(200).json(out); return
     }
 
+    // --- Spend credits (redeem reward / invest in idea / generic) ---
+    // Server is authoritative: client passes the amount and a description,
+    // we verify the user has enough and decrement atomically. Returns
+    // { credits, awarded: -amount, ok: true } on success.
+    if (action === 'spend') {
+      const amount = Math.max(0, Math.round(Number((req.body || {}).amount) || 0))
+      const description = String((req.body || {}).description || 'Credits spent').slice(0, 120)
+      if (!amount) { res.status(400).json({ error: 'amount required' }); return }
+      const out = await db.runTransaction(async (tx) => {
+        const d = (await tx.get(ref)).data() || {}
+        const balance = d.credits || 0
+        if (balance < amount) return { credits: balance, awarded: 0, ok: false }
+        tx.update(ref, { credits: inc(-amount) })
+        return { credits: balance - amount, awarded: -amount, ok: true }
+      })
+      if (out.ok) await logTx(db, uid, -amount, description)
+      res.status(200).json(out)
+      return
+    }
+
     res.status(400).json({ error: 'Unknown credit action' })
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Credit request failed' })

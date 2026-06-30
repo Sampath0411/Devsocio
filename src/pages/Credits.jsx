@@ -55,7 +55,7 @@ export default function Credits() {
       toast(`You already own ${r.name}`, { tone: 'warning' })
       return
     }
-    if (!(await spendCredits(r.cost))) {
+    if (!(await spendCredits(r.cost, `Redeemed: ${r.name}`))) {
       toast('Not enough credits', { tone: 'warning' })
       return
     }

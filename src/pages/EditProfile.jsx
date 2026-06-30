@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
@@ -27,21 +27,30 @@ export default function EditProfile() {
   const toast = useToast()
   const navigate = useNavigate()
 
-  const [form, setForm] = useState({
-    displayName: user?.displayName || '',
-    bio: user?.bio || '',
-    techStack: user?.techStack || [],
-    avatar: user?.avatar || '',
-    coverUrl: user?.coverUrl || '',
-    banner: user?.banner || '',
-    links: user?.links || {},
-    projects: user?.projects || [],
-    openToCollab: user?.openToCollab ?? false,
-    lookingForCofounder: user?.lookingForCofounder ?? false,
-  })
+  // form is null until the profile loads, so we never write empty defaults
+  // back to Firestore on a cold open before the user snapshot arrives.
+  const [form, setForm] = useState(null)
   const [genning, setGenning] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [linkInput, setLinkInput] = useState('')
+
+  // Hydrate the form when the profile becomes available; never overwrite an
+  // in-progress edit once initialized.
+  useEffect(() => {
+    if (form || !user) return
+    setForm({
+      displayName: user.displayName || '',
+      bio: user.bio || '',
+      techStack: user.techStack || [],
+      avatar: user.avatar || '',
+      coverUrl: user.coverUrl || '',
+      banner: user.banner || '',
+      links: user.links || {},
+      projects: user.projects || [],
+      openToCollab: user.openToCollab ?? false,
+      lookingForCofounder: user.lookingForCofounder ?? false,
+    })
+  }, [user, form])
 
   // Add a pasted social/portfolio URL → auto-detect platform + handle.
   const addLink = () => {
@@ -111,9 +120,19 @@ export default function EditProfile() {
   }
 
   const save = async () => {
+    if (!form || !user?.username) return
     await saveProfileFields(form) // write-through to Firestore
     toast('Profile saved', { tone: 'success' })
     navigate(`/profile/${user.username}`)
+  }
+
+  if (!form) {
+    return (
+      <div className="mx-auto w-full max-w-xl">
+        <h1 className="mb-4 font-display text-xl font-bold">Edit Profile</h1>
+        <div className="card"><AILoader label="Loading your profile…" /></div>
+      </div>
+    )
   }
 
   return (

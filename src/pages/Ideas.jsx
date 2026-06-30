@@ -159,14 +159,14 @@ export default function Ideas() {
   })
 
   const invest = async (idea) => {
-    if (!(await spendCredits(50))) {
+    if (!(await spendCredits(50, `Invested in idea: ${idea.title}`))) {
       toast('Not enough credits to invest', { tone: 'warning' })
       return
     }
     try {
       await investInIdea(idea.ideaId, 50)
     } catch {
-      /* optimistic — credit already spent locally */
+      /* server already debited; idea counter update best-effort */
     }
     toast(`Invested 50 credits in "${idea.title}"`, { icon: Coins })
   }

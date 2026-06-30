@@ -103,7 +103,14 @@ export default function AdminAgentChat({ height = 460 }) {
     try {
       const { reply, proposedActions, suggestions } = await askAgent(next, adminContext)
       setMessages((m) => [...m, { role: 'assistant', content: reply }])
-      setPending(proposedActions)
+      // The agent server returns proposed actions without ids; stamp a
+      // stable client id so approve/dismiss only affects one card.
+      setPending(
+        (proposedActions || []).map((a, i) => ({
+          ...a,
+          id: a.id || `pa_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}`,
+        }))
+      )
       // Contextual follow-ups from the agent; fall back to a fresh shuffle.
       setSuggestions(suggestions && suggestions.length ? suggestions : shufflePick(SUGGESTION_POOL, 4))
     } catch (err) {

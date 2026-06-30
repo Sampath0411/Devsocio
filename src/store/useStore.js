@@ -6,6 +6,7 @@ import {
   setFollow,
   pushNotification,
 } from '../lib/db'
+import { spendCreditsRemote } from '../lib/credits'
 
 // Global state. Auth/profile/credits AND the social graph (likes/saves/follows)
 // are backed by Firebase and kept in sync in real time via onAuthStateChanged +
@@ -22,14 +23,24 @@ export const useStore = create((set, get) => ({
   setProfile: (p) => set({ user: p }),
   clearAuth: () => set({ firebaseUser: null, user: null, likes: {}, saved: {}, following: {} }),
 
-  // ---- credits (PRD 5) — client-side credit writes REMOVED ----
-  // All credit changes now go through /api/credits (serverless), which uses
-  // the Admin SDK to atomically update Firestore. The profile onSnapshot
-  // subscription in App.jsx will propagate the authoritative balance to the
-  // store automatically. These stubs remain so existing callers (toast
-  // messages, navigation) continue to work — they no longer write credits.
+  // ---- credits (PRD 5) — all writes go through /api/credits ----
+  // The server uses the Admin SDK to atomically update Firestore and
+  // enforces business rules (once-per-day daily bonus, balance check on
+  // spends, etc.). The profile onSnapshot subscription in App.jsx then
+  // propagates the authoritative balance back to this store automatically.
+  //
+  // addCredits is a no-op — earning actions go through earnCredits() in
+  // lib/credits.js which calls the server directly. spendCredits makes a
+  // server call and returns false if the user has insufficient credits.
   addCredits: async (_amount) => { /* no-op: credits are server-authoritative */ },
-  spendCredits: async (_amount) => { /* no-op: credits are server-authoritative */ return false },
+  spendCredits: async (amount, description) => {
+    try {
+      const r = await spendCreditsRemote(amount, description)
+      return !!r?.ok
+    } catch {
+      return false
+    }
+  },
 
   saveProfileFields: async (fields) => {
     const u = get().firebaseUser

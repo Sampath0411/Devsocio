@@ -1,66 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// DevSocio brand palette — "Coastal Dev".
-///   Space Indigo #222e50 · Cerulean #007991 · Seagrass #439a86
-///   Celadon #bcd8c1 · Light Gold #e9d985
+/// DevSocio brand palette — matches the web app's Tailwind theme.
+///   Primary orange #FCA311 on near-black #000000 background, with
+///   Prussian-blue surfaces (#14213D / #1A2B4E / #0D1628).
 class AppColors {
-  // -- Core palette --
-  static const spaceIndigo = Color(0xFF222E50);
-  static const cerulean = Color(0xFF007991);
-  static const seagrass = Color(0xFF439A86);
-  static const celadon = Color(0xFFBCD8C1);
-  static const lightGold = Color(0xFFE9D985);
+  // -- Core palette (web parity) --
+  static const orangeWarm = Color(0xFFFCA311); // primary
+  static const orangeSoft = Color(0xFFFDB340);
+  static const orangeDark = Color(0xFFE8920A);
+  static const prussian = Color(0xFF14213D);
+  static const prussianHi = Color(0xFF1A2B4E);
+  static const prussianDeep = Color(0xFF0D1628);
 
   // -- Brand primaries --
-  static const primary = Color(0xFF007991); // Cerulean
-  static const accent = Color(0xFF439A86); // Seagrass
+  static const primary = Color(0xFFFCA311); // Orange — main CTA / accent
+  static const accent = Color(0xFFFCA311); // alias
 
   // -- Semantic colors --
-  static const danger = Color(0xFFE2607A);
-  static const success = Color(0xFF439A86); // Seagrass
-  static const warning = Color(0xFFE9D985); // Light Gold
-  static const orange = Color(0xFFE9A85A);
-  static const gold = Color(0xFFE9D985);
-  static const goldDark = Color(0xFFD4BF5A);
+  static const danger = Color(0xFFEF4444);
+  static const success = Color(0xFF22C55E);
+  static const warning = Color(0xFFFCA311); // Orange doubles as warning
+  static const orange = Color(0xFFFCA311);
+  static const gold = Color(0xFFFCA311);
+  static const goldDark = Color(0xFFE8920A);
 
-  // -- Section-specific accent palettes (derived from the core palette) --
-  // Feed: cerulean → seagrass
-  static const feedPrimary = Color(0xFF007991);
-  static const feedSecondary = Color(0xFF439A86);
+  // -- Section-specific accent palettes (orange-forward to match web) --
+  // Feed: orange → orange-dark
+  static const feedPrimary = Color(0xFFFCA311);
+  static const feedSecondary = Color(0xFFE8920A);
 
-  // Explore: seagrass → celadon
-  static const explorePrimary = Color(0xFF439A86);
-  static const exploreSecondary = Color(0xFF6FB8A0);
+  // Explore: prussian → orange
+  static const explorePrimary = Color(0xFF14213D);
+  static const exploreSecondary = Color(0xFFFCA311);
 
-  // Ideas: light gold → warm gold
-  static const ideasPrimary = Color(0xFFE9D985);
-  static const ideasSecondary = Color(0xFFD4BF5A);
+  // Ideas: orange-soft → orange
+  static const ideasPrimary = Color(0xFFFDB340);
+  static const ideasSecondary = Color(0xFFFCA311);
 
-  // Messages: cerulean → deep teal
-  static const messagesPrimary = Color(0xFF007991);
-  static const messagesSecondary = Color(0xFF0A8FAB);
+  // Messages: prussian-deep → prussian
+  static const messagesPrimary = Color(0xFF0D1628);
+  static const messagesSecondary = Color(0xFF14213D);
 
-  // Profile: space indigo → cerulean
-  static const profilePrimary = Color(0xFF3A4D7A);
-  static const profileSecondary = Color(0xFF007991);
+  // Profile: prussian → orange
+  static const profilePrimary = Color(0xFF14213D);
+  static const profileSecondary = Color(0xFFFCA311);
 
-  // Admin: cerulean
-  static const adminPrimary = Color(0xFF007991);
-  static const adminSecondary = Color(0xFF0A8FAB);
+  // Admin: prussian
+  static const adminPrimary = Color(0xFF14213D);
+  static const adminSecondary = Color(0xFF1A2B4E);
 
-  // -- Backgrounds & surfaces (derived from Space Indigo) --
-  static const bg = Color(0xFF0B1020); // near-black navy
-  static const surface = Color(0xFF141D33);
-  static const surfaceAlt = Color(0xFF1B2742);
-  static const surfaceCard = Color(0xFF141D33);
-  static const border = Color(0xFF2A3A5C);
-  static const borderLight = Color(0xFF364970);
+  // -- Backgrounds & surfaces (web parity: pure black bg, prussian panels) --
+  static const bg = Color(0xFF000000); // pure black
+  static const surface = Color(0xFF14213D); // prussian panel
+  static const surfaceAlt = Color(0xFF1A2B4E); // raised panel
+  static const surfaceCard = Color(0xFF14213D);
+  static const border = Color(0xFF1E2F4A);
+  static const borderLight = Color(0xFF263C60);
 
-  // -- Text --
-  static const textPrimary = Color(0xFFEEF3F8);
-  static const textSecondary = Color(0xFFC4D0E0);
-  static const textMuted = Color(0xFF8497B4);
+  // -- Text (web parity) --
+  static const textPrimary = Color(0xFFFFFFFF);
+  static const textSecondary = Color(0xFFE5E5E5);
+  static const textMuted = Color(0xFFA0ADC0);
 
   // -- Glass effects --
   static const glassBg = Color(0x1AFFFFFF);

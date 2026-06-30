@@ -41,7 +41,9 @@ function defaultProfile(user, extra = {}) {
     uid: user.uid,
     username: extra.username || base,
     displayName: extra.displayName || user.displayName || base,
-    email: user.email || '',
+    // Persist lowercase so findUserUid's `where('email','==',...)` resolves
+    // accounts regardless of how the email was capitalised at signup.
+    email: (user.email || '').toLowerCase(),
     bio: extra.bio || 'New on DevSocio — building things in public.',
     avatar: user.photoURL || avatarFor(extra.username || base),
     devLevel: extra.devLevel || 'Builder',
@@ -85,7 +87,14 @@ export async function ensureProfile(user, extra = {}) {
     if (!data.provider) patch.provider = providerOf(user)
     if (ownerFlags) Object.assign(patch, ownerFlags) // keep owner perms enforced
     updateDoc(ref, patch).catch(() => {})
-    return { ...data, ...patch }
+    // Return the persisted doc (with non-sentinel patch fields) so callers
+    // never render an unresolved FieldValue sentinel. The fresh lastLoginAt
+    // arrives via the live subscribeProfile snapshot a moment later.
+    return {
+      ...data,
+      ...(ownerFlags || {}),
+      ...(patch.provider ? { provider: patch.provider } : {}),
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn('[DevSocio] Firestore profile unavailable, using local default:', err?.message)

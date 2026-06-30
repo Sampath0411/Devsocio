@@ -22,17 +22,19 @@ import {
   arrayUnion,
   runTransaction,
 } from 'firebase/firestore'
-import { db } from '../firebase'
+import { db, auth } from '../firebase'
 
 // ----------------------------------------------------------------------------
 // Profiles & credits
 // ----------------------------------------------------------------------------
 
 // Live subscription to a user's profile doc (PRD §8.3 users collection).
+// Emits `null` for missing docs so subscribers can distinguish "not loaded yet"
+// from "user has no profile" and don't hang on first paint.
 export function subscribeProfile(uid, onData, onError) {
   return onSnapshot(
     doc(db, 'users', uid),
-    (snap) => snap.exists() && onData(snap.data()),
+    (snap) => onData(snap.exists() ? snap.data() : null),
     (err) => onError?.(err),
   )
 }
@@ -171,6 +173,7 @@ export function parseHashtags(text = '') {
 // Quote-repost (PRD §3.3.2 "Repost with comment"). Creates a new post that
 // embeds a snapshot of the original so the feed can render the quoted card.
 export async function repost(original, me, quote = '') {
+  if (!me?.uid) throw new Error('Not signed in')
   const snapshot = {
     postId: original.postId,
     type: original.type,
@@ -179,12 +182,12 @@ export async function repost(original, me, quote = '') {
     imageUrl: original.imageUrl || null,
   }
   return createPost({
-    authorUid: me?.uid,
-    author: { username: me?.username, displayName: me?.displayName, avatar: me?.avatar },
+    authorUid: me.uid,
+    author: { username: me.username, displayName: me.displayName, avatar: me.avatar },
     type: original.type || 'Opinion / Take',
     content: quote.trim(),
     hashtags: parseHashtags(quote),
-    tags: me?.techStack?.slice(0, 2) || [],
+    tags: me.techStack?.slice(0, 2) || [],
     repostOf: snapshot,
   })
 }
@@ -557,7 +560,6 @@ export async function requestCollab(me, target, context = '') {
 // SECURITY: Verifies the caller is a member of the conversation before allowing.
 export async function acceptCollab(cid) {
   if (!cid) return
-  const { auth } = await import('../firebase')
   const caller = auth.currentUser
   if (!caller) return
   const convoRef = doc(db, 'conversations', cid)
@@ -651,10 +653,11 @@ export async function deletePost(postId) {
   const authorUid = snap?.exists() ? snap.data().authorUid : null
   await deleteDoc(doc(db, 'posts', postId))
   if (authorUid) {
-    // Clamp at 0 so postsCount never goes negative.
-    const userSnap = await getDoc(doc(db, 'users', authorUid)).catch(() => null)
-    const current = userSnap?.data()?.postsCount ?? 0
-    await updateDoc(doc(db, 'users', authorUid), { postsCount: Math.max(0, current - 1) }).catch(() => {})
+    // Atomic decrement avoids races between concurrent deletes; we can't
+    // clamp on the server, so we accept a transient -1 if multiple deletes
+    // run interleaved with a counter recount. createPost increments(+1) so
+    // both sides stay symmetric.
+    await updateDoc(doc(db, 'users', authorUid), { postsCount: increment(-1) }).catch(() => {})
   }
 }
 

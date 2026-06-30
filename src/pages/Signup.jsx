@@ -3,8 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { emailSignup, googleLogin, githubLogin, authErrorMessage } from '../lib/auth'
 import { earnCredits } from '../lib/credits'
-import { changeCredits } from '../lib/db'
-import { auth } from '../firebase'
 import { AuthShell, Divider } from './Login'
 import { motion } from 'framer-motion'
 import { StackPill } from '../components/ui'
@@ -32,19 +30,15 @@ export default function Signup() {
       techStack: f.techStack.includes(s) ? f.techStack.filter((x) => x !== s) : [...f.techStack, s],
     }))
 
-  // Award the referral bonus. Prefer the secure server function; if it isn't
-  // available (static hosting), fall back to a client-side credit award.
+  // Award the referral bonus via the trusted server. The Firestore rules
+  // block direct credit writes from the client, so there's no offline
+  // fallback — if the server is unreachable the toast simply doesn't fire.
   const claimReferral = async () => {
     if (!form.ref) return
     try {
       const { awarded } = await earnCredits('referral_signup')
       if (awarded) toast('+150 referral bonus applied!', { tone: 'success' })
-    } catch {
-      try {
-        if (auth.currentUser) await changeCredits(auth.currentUser.uid, 150)
-        toast('+150 referral bonus applied!', { tone: 'success' })
-      } catch { /* ignore */ }
-    }
+    } catch { /* server unavailable — no client fallback (rules block writes) */ }
   }
 
   const oauth = async (fn) => {

@@ -23,7 +23,7 @@ const FALLBACK_AI = {
 }
 
 export default function CreatePostModal({ open, onClose }) {
-  const { user, addPostLocal, addCredits } = useStore()
+  const { user, addPostLocal } = useStore()
   const toast = useToast()
   const [type, setType] = useState('Code Snippet')
   const [content, setContent] = useState('')
@@ -89,13 +89,17 @@ export default function CreatePostModal({ open, onClose }) {
     } catch {
       addPostLocal({ ...post, postId: 'local_' + Date.now() })
     }
-    // Reward via the trusted server; fall back to client write if not set up yet.
+    // Reward via the trusted server. If the call fails (offline / not
+    // configured), the post is still published — we just don't claim the
+    // reward client-side since credits are server-authoritative.
+    let awarded = 0
     try {
-      await earnCredits('post_reward')
+      const r = await earnCredits('post_reward')
+      awarded = r?.awarded || 0
     } catch {
-      addCredits(30)
+      /* credits unavailable — post still goes through */
     }
-    toast('Post published! +30 credits', { icon: Coins })
+    toast(awarded ? `Post published! +${awarded} credits` : 'Post published', { icon: Coins })
     reset()
     onClose()
   }

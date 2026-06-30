@@ -33,3 +33,22 @@ export async function claimPostMilestone(action, postId) {
   })
   return res.ok ? res.json() : null
 }
+
+// Spend credits via the trusted server. Server verifies the balance and
+// decrements atomically; returns { ok, credits } where ok=false means
+// insufficient funds. Throws only on network/auth failure.
+export async function spendCreditsRemote(amount, description = 'Credits spent') {
+  const user = auth.currentUser
+  if (!user) throw new Error('Not signed in')
+  const token = await user.getIdToken()
+  const res = await fetch('/api/credits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: 'spend', amount, description }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Spend failed (${res.status})`)
+  }
+  return res.json() // { credits, awarded, ok }
+}

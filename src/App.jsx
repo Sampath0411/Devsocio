@@ -17,6 +17,7 @@ import {
   updateProfileDoc,
 } from './lib/db'
 import { useStore } from './store/useStore'
+import { claimPostMilestone } from './lib/credits'
 import { ToastProvider } from './components/Toast'
 import PageLoader from './components/PageLoader'
 import Layout from './components/Layout'
@@ -116,35 +117,26 @@ export default function App() {
         // is a UX optimization; the server transaction is authoritative.
         if (p.likes >= 10 && !p.milestone10Paid && !set.has(p.postId + '_10')) {
           set.add(p.postId + '_10')
-          import('./lib/credits').then(({ claimPostMilestone }) =>
-            claimPostMilestone('post_10_likes', p.postId)
-              .then((r) => {
-                // If the server awarded credits, keep the entry in `set` so
-                // we don't spam the endpoint.
-                if (r?.awarded) {
-                  // entry stays in set forever — milestone already claimed
-                } else {
-                  // Server rejected (not author, already paid, etc.) — remove
-                  // so we can retry later in case of stale snapshot.
-                  set.delete(p.postId + '_10')
-                }
-              })
-              .catch(() => {
-                set.delete(p.postId + '_10') // retry on network error
-              })
-          )
+          claimPostMilestone('post_10_likes', p.postId)
+            .then((r) => {
+              // If the server awarded credits, keep the entry in `set` so
+              // we don't spam the endpoint. Otherwise free it so a stale
+              // snapshot can retry later.
+              if (!r?.awarded) set.delete(p.postId + '_10')
+            })
+            .catch(() => {
+              set.delete(p.postId + '_10') // retry on network error
+            })
         }
         if (p.likes >= 50 && !p.milestone50Paid && !set.has(p.postId + '_50')) {
           set.add(p.postId + '_50')
-          import('./lib/credits').then(({ claimPostMilestone }) =>
-            claimPostMilestone('post_50_likes', p.postId)
-              .then((r) => {
-                if (!r?.awarded) set.delete(p.postId + '_50')
-              })
-              .catch(() => {
-                set.delete(p.postId + '_50')
-              })
-          )
+          claimPostMilestone('post_50_likes', p.postId)
+            .then((r) => {
+              if (!r?.awarded) set.delete(p.postId + '_50')
+            })
+            .catch(() => {
+              set.delete(p.postId + '_50')
+            })
         }
       }
     })
@@ -188,7 +180,9 @@ export default function App() {
           if (initial.banned && !isAdmin(u)) { await logout(); return }
           setProfile(initial)
           // Live profile — also enforces bans applied while the user is online.
+          // p === null means the profile doc was deleted; skip the update.
           unsubProfile = subscribeProfile(u.uid, (p) => {
+            if (!p) return
             if (p.banned && !isAdmin(u)) { logout(); return }
             setProfile(p)
           })

@@ -59,12 +59,16 @@ export default function Notifications() {
                 {n.actor && <Avatar src={n.actor.avatar} alt={n.actor.displayName} size={36} />}
                 <p className="flex-1 text-sm">
                   {n.actor && (
-                    <Link
-                      to={`/profile/${n.actor.username}`}
-                      className="font-bold text-white hover:text-primary transition-colors"
-                    >
-                      {n.actor.displayName}{' '}
-                    </Link>
+                    n.actor.username ? (
+                      <Link
+                        to={`/profile/${n.actor.username}`}
+                        className="font-bold text-white hover:text-primary transition-colors"
+                      >
+                        {n.actor.displayName}{' '}
+                      </Link>
+                    ) : (
+                      <span className="font-bold text-white">{n.actor.displayName || 'Developer'} </span>
+                    )
                   )}
                   <span className={n.actor ? 'text-text-muted' : 'text-text-secondary'}>{n.text}</span>
                 </p>

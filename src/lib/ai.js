@@ -35,7 +35,7 @@ async function chatDirect(messages, { temperature, maxTokens }) {
   const FALLBACK_MODELS = [
     'openai/gpt-oss-120b:free',
     'openai/gpt-oss-20b:free',
-    'google/gemma-4-31b-it:free',
+    'google/gemma-2-9b-it:free',
     'meta-llama/llama-3.3-70b-instruct:free',
   ]
   if (!API_KEY) throw new Error('Set VITE_OPENROUTER_API_KEY in .env for local AI dev')
