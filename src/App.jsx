@@ -2,7 +2,7 @@ import { Component, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth, initAnalytics } from './firebase'
+import { auth, initFirebase, initAnalytics, MISSING_FIREBASE_KEYS } from './firebase'
 import { ensureProfile, isAdmin, logout } from './lib/auth'
 import { reportError } from './lib/errorReporter'
 import {
@@ -91,6 +91,31 @@ function AdminOnly({ children }) {
   return <Layout wide>{children}</Layout>
 }
 
+// Firebase config error screen — shown instead of blank white page.
+function FirebaseConfigError() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
+      <div className="max-w-md space-y-4">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-primary/30 bg-primary/10">
+          <span className="text-2xl">⚙️</span>
+        </div>
+        <h1 className="font-display text-xl font-bold text-white">Firebase not configured</h1>
+        <p className="text-sm text-text-muted leading-relaxed">
+          The following environment variables are missing from your deployment:
+        </p>
+        <div className="rounded-card border border-border bg-surface-3 p-3 text-left">
+          {MISSING_FIREBASE_KEYS.map((key) => (
+            <code key={key} className="block text-xs font-mono text-primary py-0.5">VITE_FIREBASE_{key}</code>
+          ))}
+        </div>
+        <p className="text-xs text-text-muted">
+          Set them in your hosting provider's environment variables and redeploy.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const {
     authReady, setAuthReady, setFirebaseUser, setProfile, clearAuth,
@@ -98,6 +123,8 @@ export default function App() {
   } = useStore()
   const toast = useToast()
 
+  const [fbReady, setFbReady] = useState(false)
+  const [fbError, setFbError] = useState(false)
   const [showTour, setShowTour] = useState(false)
   const claimedMilestones = useRef(new Set())
 
@@ -117,6 +144,13 @@ export default function App() {
 
   // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {
+    // Initialize Firebase — must succeed before any API calls.
+    if (!initFirebase()) {
+      setFbError(true)
+      setFbReady(true)
+      return
+    }
+    setFbReady(true)
     initAnalytics()
     const unsubPosts = subscribePosts((posts) => {
       setPosts(posts)
@@ -236,47 +270,50 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <AnimatePresence>
-        {!authReady && <PageLoader key="loader" onDone={() => {}} />}
-      </AnimatePresence>
+      {fbError ? (
+        <FirebaseConfigError />
+      ) : !fbReady ? (
+        <PageLoader key="loader" />
+      ) : (
+        <>
+          <AnimatePresence>
+            {!authReady && <PageLoader key="loader" />}
+          </AnimatePresence>
 
-      {showTour && (
-        <OnboardingTour onDone={() => {
-          setShowTour(false)
-          // Mark done optimistically — if the write fails, the tour stays
-          // hidden for this session and will retry on next login.
-          if (auth.currentUser) {
-            markOnboardingDone(auth.currentUser.uid).catch(() => {
-              // On failure, re-show the tour on next mount by NOT marking done.
-              // The user can still proceed; the tour will reappear next time.
-            })
-          }
-        }} />
-      )}
+          {showTour && (
+            <OnboardingTour onDone={() => {
+              setShowTour(false)
+              if (auth?.currentUser) {
+                markOnboardingDone(auth.currentUser.uid).catch(() => {})
+              }
+            }} />
+          )}
 
-      {authReady && (
-        <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          {authReady && (
+            <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-          <Route path="/feed" element={<Protected><Feed /></Protected>} />
-          <Route path="/explore" element={<Protected><Explore /></Protected>} />
-          <Route path="/ideas" element={<Protected><Ideas /></Protected>} />
-          <Route path="/profile/edit" element={<Protected wide><EditProfile /></Protected>} />
-          <Route path="/profile/:username" element={<Protected><Profile /></Protected>} />
-          <Route path="/messages" element={<Protected wide><Messages /></Protected>} />
-          <Route path="/messages/:id" element={<Protected wide><Messages /></Protected>} />
-          <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
-          <Route path="/credits" element={<Protected wide><Credits /></Protected>} />
-          <Route path="/settings" element={<Protected wide><Settings /></Protected>} />
-          <Route path="/post/:id" element={<Protected><PostDetail /></Protected>} />
-          <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
+              <Route path="/feed" element={<Protected><Feed /></Protected>} />
+              <Route path="/explore" element={<Protected><Explore /></Protected>} />
+              <Route path="/ideas" element={<Protected><Ideas /></Protected>} />
+              <Route path="/profile/edit" element={<Protected wide><EditProfile /></Protected>} />
+              <Route path="/profile/:username" element={<Protected><Profile /></Protected>} />
+              <Route path="/messages" element={<Protected wide><Messages /></Protected>} />
+              <Route path="/messages/:id" element={<Protected wide><Messages /></Protected>} />
+              <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
+              <Route path="/credits" element={<Protected wide><Credits /></Protected>} />
+              <Route path="/settings" element={<Protected wide><Settings /></Protected>} />
+              <Route path="/post/:id" element={<Protected><PostDetail /></Protected>} />
+              <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        </ErrorBoundary>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            </ErrorBoundary>
+          )}
+        </>
       )}
     </ToastProvider>
   )
