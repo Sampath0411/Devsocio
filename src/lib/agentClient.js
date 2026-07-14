@@ -1,16 +1,38 @@
-// Client bridge to the Admin Copilot backend (api/agent.js).
+// Client bridge to the Admin Copilot backend (api/agent.js) and to the
+// admin-only server endpoints (api/adminCredits.js).
 //
 // askAgent() sends the chat history (with the admin's Firebase ID token) and
 // gets back the assistant reply plus any *proposed actions*. Proposed actions
 // are NOT executed by the server — the UI asks the admin to approve each one,
-// then executeAction() performs it here using the same db helpers the Admin
-// panel already uses (which the Firestore rules permit for the admin).
+// then executeAction() performs it. Flag and credit changes are routed to the
+// server-side admin endpoint (which uses the Admin SDK and verifies the
+// `admin: true` custom claim). Other actions (delete post, resolve report,
+// resolve error) use the client Firestore SDK because the Firestore rules
+// allow them when the caller is the admin.
 import { auth, db } from '../firebase'
 import {
-  deletePost, resolveReport, setUserFlag, changeCredits, setCredits, resolveError,
+  deletePost, resolveReport, resolveError,
   findUserUid, getDoc, doc,
 } from './db'
 import { ADMIN_EMAIL } from './auth'
+
+async function adminRequest(body) {
+  const user = auth.currentUser
+  if (!user) throw new Error('Not signed in')
+  const token = await user.getIdToken()
+  const res = await fetch('/api/adminCredits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const code = data?.error?.code || 'admin_request_failed'
+    const message = data?.error?.message || `Admin request failed (${res.status})`
+    throw new Error(`${code}: ${message}`)
+  }
+  return data
+}
 
 export async function askAgent(messages, admin) {
   const user = auth.currentUser
@@ -84,22 +106,30 @@ export async function executeAction(a) {
           throw new Error(`Protected: the owner is permanently ${args.field}.`)
         }
       }
-      await setUserFlag(uid, args.field, !!args.value)
-      return `${args.field} ${args.value ? 'granted to' : 'removed from'} ${args.uid}.`
+      // Route through the server endpoint (Admin SDK, custom-claim checked).
+      await adminRequest({
+        action: 'setUserFlag',
+        uid,
+        field: args.field,
+        value: !!args.value,
+        reason: args.reason,
+      })
+      return `${args.field} ${args.value ? 'granted to' : 'removed from'} ${uid}.`
     }
     case 'change_credits': {
       const uid = await requireUid(args.uid)
       const delta = Number(args.delta)
-      if (!Number.isFinite(delta)) throw new Error('Invalid credit amount.')
-      await changeCredits(uid, delta)
-      return `${delta >= 0 ? '+' : ''}${delta} credits → ${args.uid}.`
+      if (!Number.isFinite(delta) || !Number.isInteger(delta)) throw new Error('Invalid credit amount (must be an integer).')
+      if (Math.abs(delta) > 1_000_000) throw new Error('Credit delta too large (max 1,000,000).')
+      await adminRequest({ action: 'changeCredits', uid, delta, reason: args.reason })
+      return `${delta >= 0 ? '+' : ''}${delta} credits → ${uid}.`
     }
     case 'set_credits': {
       const uid = await requireUid(args.uid)
       const value = Number(args.value)
-      if (!Number.isFinite(value)) throw new Error('Invalid credit value.')
-      await setCredits(uid, value)
-      return `Set ${args.uid} credits to ${value}.`
+      if (!Number.isFinite(value) || value < 0 || value > 1e8) throw new Error('Invalid credit value (0 to 100,000,000).')
+      await adminRequest({ action: 'setCredits', uid, value, reason: args.reason })
+      return `Set ${uid} credits to ${value}.`
     }
     case 'resolve_error': {
       if (!args.errorId) throw new Error('No errorId provided.')

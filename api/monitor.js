@@ -15,6 +15,7 @@
 // invocations when CRON_SECRET is set, so we can reject any public calls.
 
 import admin from 'firebase-admin'
+import { timingSafeEqual } from 'crypto'
 
 function getApp() {
   if (admin.apps.length) return admin.app()
@@ -28,14 +29,28 @@ function getApp() {
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export default async function handler(req, res) {
-  // Only allow Vercel Cron (or a caller who knows the secret) when configured.
+  // CRON_SECRET is REQUIRED. Fail closed if not set so a public deploy without
+  // the secret cannot be triggered by anyone on the internet.
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    const auth = req.headers.authorization || ''
-    if (auth !== `Bearer ${secret}`) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
+  if (!secret) {
+    console.error('monitor: CRON_SECRET is not configured; refusing to run.')
+    res.status(503).json({ ok: false, error: { code: 'server_misconfigured', message: 'CRON_SECRET not configured' } })
+    return
+  }
+  // Constant-time comparison to avoid timing attacks (defense in depth).
+  const auth = req.headers.authorization || ''
+  const provided = auth.replace(/^Bearer /, '')
+  let equal = false
+  try {
+    const a = Buffer.from(provided, 'utf8')
+    const b = Buffer.from(secret, 'utf8')
+    equal = a.length === b.length && timingSafeEqual(a, b)
+  } catch {
+    equal = false
+  }
+  if (!equal) {
+    res.status(401).json({ ok: false, error: { code: 'unauthenticated', message: 'Unauthorized' } })
+    return
   }
 
   try {
@@ -93,6 +108,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ ok: true, ...digest, generatedAt: 'server-timestamp' })
   } catch (err) {
-    res.status(500).json({ error: err?.message || 'Monitor run failed' })
+    res.status(500).json({ ok: false, error: { code: 'monitor_failed', message: err?.message || 'Monitor run failed' } })
   }
 }

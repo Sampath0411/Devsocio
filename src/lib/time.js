@@ -29,7 +29,10 @@ export function timeAgo(value) {
   else if (typeof value === 'number') date = new Date(value)
   else return ''
 
-  const secs = Math.floor((Date.now() - date.getTime()) / 1000)
+  // Guard against future timestamps (clock skew or corrupted data)
+  const diff = Date.now() - date.getTime()
+  if (diff < 0) return 'now' // future timestamp, treat as "now"
+  const secs = Math.floor(diff / 1000)
   if (secs < 45) return 'now'
   const mins = Math.floor(secs / 60)
   if (mins < 60) return `${mins}m`

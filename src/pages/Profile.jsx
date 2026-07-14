@@ -59,7 +59,7 @@ export default function Profile() {
   }
 
   const invest = async (idea) => {
-    if (!(await spendCredits(50, `Invested in idea: ${idea.title}`))) {
+    if (!(await spendCredits('invest_idea', idea.ideaId))) {
       toast('Not enough credits to invest', { tone: 'warning' })
       return
     }

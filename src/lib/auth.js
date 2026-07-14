@@ -11,6 +11,13 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { auth, db, googleProvider, githubProvider } from '../firebase'
 
 // Only this account can see the Admin panel (PRD §9 — ADMIN role).
+// This is a CLIENT-SIDE UX check only — it hides the admin link in the UI.
+// The actual security boundary is the server: Firestore Rules and the
+// /api/adminCredits handler both check the `admin: true` custom claim set
+// via the Admin SDK. The custom claim is not directly readable from the
+// client ID token without an async `getIdTokenResult()` call, so for the
+// simple "is this user an admin" UI hint we use an email match.
+//
 // Override via VITE_ADMIN_EMAIL env var; falls back to the hardcoded default.
 export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'sampathlox@gmail.com'
 export const isAdmin = (user) =>
@@ -100,6 +107,20 @@ export async function ensureProfile(user, extra = {}) {
     console.warn('[DevSocio] Firestore profile unavailable, using local default:', err?.message)
     return fallback
   }
+}
+
+// Username rules: 3-24 chars, alphanumeric + underscore only.
+// Must not start or end with underscore, and cannot be just digits.
+export function validateUsername(username) {
+  if (!username || typeof username !== 'string') return 'Username is required'
+  const u = username.trim()
+  if (u.length < 3) return 'Username must be at least 3 characters'
+  if (u.length > 24) return 'Username must be at most 24 characters'
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_]*[a-zA-Z0-9]$/.test(u) && !/^[a-zA-Z0-9]$/.test(u)) {
+    return 'Username: letters, numbers, underscores only. Must start/end with letter or number.'
+  }
+  if (/^\d+$/.test(u)) return 'Username cannot be only numbers'
+  return null // valid
 }
 
 export async function emailSignup({ email, password, username, displayName, devLevel, techStack, referredBy }) {

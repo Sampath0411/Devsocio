@@ -22,7 +22,7 @@ import admin from 'firebase-admin'
 // ---------------------------------------------------------------------------
 // Config — uses OpenRouter (same provider/key as api/ai.js).
 // ---------------------------------------------------------------------------
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'sampathlox@gmail.com').toLowerCase()
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase()
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const OR_KEY = process.env.OPENROUTER_API_KEY || ''
 // The agent needs a tool-calling model; most free models don't support tools
@@ -36,6 +36,7 @@ const FALLBACK_MODELS = [
 ]
 const MAX_TOOL_ROUNDS = 6 // safety cap on the read-tool loop
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://devsocio.app'
 
 function getApp() {
   if (admin.apps.length) return admin.app()
@@ -400,12 +401,21 @@ async function callLLM(messages) {
 // Handler
 // ---------------------------------------------------------------------------
 export default async function handler(req, res) {
+  // CORS — only allow known origin.
+  res.setHeader('Vary', 'Origin')
+  const origin = req.headers.origin
+  if (origin === ALLOWED_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+  }
+  if (req.method === 'OPTIONS') { res.status(204).end(); return }
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' })
+    res.status(405).json({ ok: false, error: { code: 'method_not_allowed', message: 'Method not allowed' } })
     return
   }
   if (!OR_KEY) {
-    res.status(500).json({ error: 'OPENROUTER_API_KEY is not configured on the server' })
+    res.status(500).json({ ok: false, error: { code: 'server_misconfigured', message: 'OPENROUTER_API_KEY is not configured on the server' } })
     return
   }
 
@@ -413,16 +423,29 @@ export default async function handler(req, res) {
     const app = getApp()
     const db = app.firestore()
 
-    // --- AuthN/Z: must be signed in AND be the admin ---
+    // --- AuthN/Z: must be signed in AND have the `admin` custom claim ---
     const token = (req.headers.authorization || '').replace(/^Bearer /, '')
-    if (!token) { res.status(401).json({ error: 'Missing auth token' }); return }
-    const decoded = await app.auth().verifyIdToken(token)
+    if (!token) {
+      res.status(401).json({ ok: false, error: { code: 'unauthenticated', message: 'Missing auth token' } })
+      return
+    }
+    let decoded
+    try {
+      decoded = await app.auth().verifyIdToken(token, true)
+    } catch {
+      res.status(401).json({ ok: false, error: { code: 'invalid_token', message: 'Invalid or expired token' } })
+      return
+    }
+    if (decoded.admin !== true) {
+      res.status(403).json({ ok: false, error: { code: 'forbidden', message: 'Admin only (custom claim required)' } })
+      return
+    }
     const email = (decoded.email || '').toLowerCase()
-    if (email !== ADMIN_EMAIL) { res.status(403).json({ error: 'Admin only' }); return }
 
     const { messages: history, admin } = req.body || {}
     if (!Array.isArray(history) || history.length === 0) {
-      res.status(400).json({ error: 'messages[] is required' }); return
+      res.status(400).json({ ok: false, error: { code: 'missing_messages', message: 'messages[] is required' } })
+      return
     }
 
     // Remember who we're serving — the verified admin from the token, enriched
@@ -489,6 +512,7 @@ export default async function handler(req, res) {
     const { reply, suggestions } = splitSuggestions(finalMsg.content || 'Done.')
     res.status(200).json({ reply, suggestions, proposedActions, toolTrace })
   } catch (err) {
-    res.status(500).json({ error: err?.message || 'Agent request failed' })
+    console.error('agent handler error:', err?.message || err)
+    res.status(500).json({ ok: false, error: { code: 'agent_failed', message: 'Agent request failed' } })
   }
 }

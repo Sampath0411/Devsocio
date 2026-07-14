@@ -138,7 +138,10 @@ export default function Ideas() {
   const [draft, setDraft] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
 
-  useEffect(() => subscribeIdeas(setIdeas), [])
+  useEffect(() => {
+    const unsub = subscribeIdeas(setIdeas)
+    return () => unsub && unsub()
+  }, [])
 
   const collab = async (idea) => {
     if (!idea.author?.uid || idea.author.uid === user?.uid) return
@@ -159,7 +162,7 @@ export default function Ideas() {
   })
 
   const invest = async (idea) => {
-    if (!(await spendCredits(50, `Invested in idea: ${idea.title}`))) {
+    if (!(await spendCredits('invest_idea', idea.ideaId))) {
       toast('Not enough credits to invest', { tone: 'warning' })
       return
     }

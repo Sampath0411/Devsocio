@@ -18,7 +18,7 @@ import {
 } from './lib/db'
 import { useStore } from './store/useStore'
 import { claimPostMilestone } from './lib/credits'
-import { ToastProvider } from './components/Toast'
+import { useToast, ToastProvider } from './components/Toast'
 import PageLoader from './components/PageLoader'
 import Layout from './components/Layout'
 import OnboardingTour from './components/OnboardingTour'
@@ -96,9 +96,24 @@ export default function App() {
     authReady, setAuthReady, setFirebaseUser, setProfile, clearAuth,
     setPosts, setUsers, setLikes, setSaved, setFollowing,
   } = useStore()
+  const toast = useToast()
 
   const [showTour, setShowTour] = useState(false)
   const claimedMilestones = useRef(new Set())
+
+  // Subscribe to transient errors emitted by the store (e.g. a failed like
+  // write) and surface them as a toast. Decouples the store from the React
+  // toast context so non-component code can signal errors.
+  useEffect(() => {
+    const unsub = useStore.subscribe((state, prev) => {
+      const err = state._lastError
+      if (err && err !== prev._lastError) {
+        toast(err.message || 'Something went wrong', { tone: 'warning' })
+        useStore.getState().clearLastError()
+      }
+    })
+    return unsub
+  }, [toast])
 
   // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
   useEffect(() => {

@@ -1,33 +1,40 @@
 // Firebase initialization (PRD §8.1 — Firebase Auth + Firestore).
-// The web API key is safe to ship in the client; access is gated by
-// Firestore Security Rules, not by hiding this config.
-// Values are read from environment variables (Vite requires VITE_ prefix).
+//
+// The Firebase web API key is safe to ship in the client; access is gated
+// by Firestore Security Rules, not by hiding this config (see
+// https://firebase.google.com/docs/projects/api-keys).
+//
+// Configuration is read from VITE_FIREBASE_* environment variables. There
+// are NO hard-coded fallbacks: missing env vars throw at startup so misconfig
+// is caught immediately rather than producing a silent white screen.
+//
+// Set the variables in .env (see .env.example) for local dev, and in your
+// hosting provider's env-var settings for production.
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, GithubAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
-// Env vars take precedence (for new deployments / local dev). If not set,
-// fall back to the existing Firebase web-app config (for the already-deployed
-// static site at devsocio-8f0c0.web.app, where rebuilds require explicit
-// env var injection). Both are public client-side keys.
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCp0aAVeKzptv4HqSicEghuX8KEP4rVjFQ',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'devsocio-8f0c0.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'devsocio-8f0c0',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'devsocio-8f0c0.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '340656300838',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:340656300838:web:43b7a0334098736e1057e7',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-9K4M5GTKC1',
+const required = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+const optional = {
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-// Warn (but don't crash) if Firebase config is missing — the deployed
-// Firebase web app (devsocio-8f0c0.web.app) was built before env vars
-// were required, so we fall back to a helpful error overlay instead of
-// a white screen. For new deployments, set VITE_FIREBASE_* in .env.
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  // eslint-disable-next-line no-console
-  console.warn('[DevSocio] Firebase config is empty. Set VITE_FIREBASE_API_KEY etc. in .env. See .env.example.')
+const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => `VITE_FIREBASE_${k.replace(/[A-Z]/g, '_$&').toUpperCase()}`)
+if (missing.length) {
+  throw new Error(
+    `[DevSocio] Firebase config is incomplete. Set the following env vars and rebuild:\n  - ${missing.join('\n  - ')}\n` +
+    `See .env.example for the full list.`
+  )
 }
+
+const firebaseConfig = { ...required, ...optional }
 
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)

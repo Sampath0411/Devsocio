@@ -35,20 +35,23 @@ export async function claimPostMilestone(action, postId) {
 }
 
 // Spend credits via the trusted server. Server verifies the balance and
-// decrements atomically; returns { ok, credits } where ok=false means
-// insufficient funds. Throws only on network/auth failure.
-export async function spendCreditsRemote(amount, description = 'Credits spent') {
+// decrements atomically using a server-defined SPEND_ACTIONS table.
+// `spendKey` must match a key in the server's SPEND_ACTIONS map;
+// `targetId` is optional (e.g. idea ID when investing).
+// Returns { ok: boolean, credits: number } where ok=false means insufficient funds.
+// Throws only on network/auth failure.
+export async function spendCreditsRemote(spendKey, targetId) {
   const user = auth.currentUser
   if (!user) throw new Error('Not signed in')
   const token = await user.getIdToken()
   const res = await fetch('/api/credits', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ action: 'spend', amount, description }),
+    body: JSON.stringify({ action: 'spend', spendKey, targetId }),
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error || `Spend failed (${res.status})`)
   }
-  return res.json() // { credits, awarded, ok }
+  return res.json() // { ok, credits, awarded, spendKey }
 }

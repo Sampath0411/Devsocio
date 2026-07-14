@@ -39,27 +39,14 @@ export function subscribeProfile(uid, onData, onError) {
   )
 }
 
-// Credits are stored on the user doc and updated atomically (PRD §5).
-// WARNING: This function is UNSAFE for client use — any signed-in user can
-// call it with any uid and delta. Credit changes MUST go through the
-// serverless function at /api/credits.js (Admin SDK, rules-enforced).
-// This is retained only for the Admin Copilot's trusted server-side calls.
-export async function changeCredits(uid, delta) {
-  await updateDoc(doc(db, 'users', uid), { credits: increment(delta) })
-}
-
-// Set an exact credit balance (admin repair for corrupted values).
-// Only callable from trusted server contexts (Admin Copilot agent).
-export async function setCredits(uid, value) {
-  await updateDoc(doc(db, 'users', uid), { credits: Math.max(0, Math.round(Number(value) || 0)) })
-}
-
-// Admin: toggle a flag on any user (verified / moderator badges).
-// DANGER: Any signed-in user can call this to make themselves admin/moderator.
-// TODO: Gate behind Admin Copilot's server-side auth (verify caller is admin).
-export async function setUserFlag(uid, field, value) {
-  await updateDoc(doc(db, 'users', uid), { [field]: value })
-}
+// Credits and admin flag functions have been removed from client exports for security.
+// These operations MUST go through the server-side API:
+// - Credits: /api/credits (server-authoritative, uses Firebase Admin SDK)
+// - User flags: /api/admin/setFlag (admin-only endpoint with email verification)
+//
+// The server-side equivalents are in:
+// - functions/index.js (credits endpoint)
+// - api/agent.js (admin actions via Copilot)
 
 export async function updateProfileDoc(uid, fields) {
   await updateDoc(doc(db, 'users', uid), fields)
@@ -93,24 +80,27 @@ export async function fetchProfileByUsername(username) {
 // Resolve a user to their uid from a uid, username, display name or email.
 // Used by the Admin Copilot so an approved action never writes to a wrong/
 // non-existent doc when the model passes a name instead of a real uid.
-// OPTIMIZED: Uses indexed queries instead of full-collection scan.
+// All four indexed lookups run in parallel; the first match wins.
 export async function findUserUid(idOrName) {
   const key = (idOrName || '').toString().trim()
   if (!key) return null
-  // 1) Treat it as a uid (the common, correct case).
-  const direct = await getDoc(doc(db, 'users', key)).catch(() => null)
+  const lower = key.toLowerCase()
+
+  // 1) Direct uid lookup. Run in parallel with the indexed queries below.
+  const [direct, byUsername, byEmail, byDisplay] = await Promise.all([
+    getDoc(doc(db, 'users', key)).catch(() => null),
+    fetchProfileByUsername(key).catch(() => null),
+    getDocs(query(collection(db, 'users'), where('email', '==', lower), limit(1))).catch(() => null),
+    getDocs(query(collection(db, 'users'), where('displayNameLower', '==', lower), limit(1))).catch(() => null),
+  ])
+
   if (direct && direct.exists()) return key
-  // 2) Exact username match (indexed query).
-  const byUsername = await fetchProfileByUsername(key).catch(() => null)
   if (byUsername?.uid) return byUsername.uid
-  // 3) Exact email match (indexed query — avoid full scan).
-  const emailSnap = await getDocs(query(collection(db, 'users'), where('email', '==', key.toLowerCase()), limit(1))).catch(() => null)
-  if (emailSnap && !emailSnap.empty) return emailSnap.docs[0].id
-  // 4) Exact displayName match (indexed query if displayName is indexed).
-  const nameSnap = await getDocs(query(collection(db, 'users'), where('displayNameLower', '==', key.toLowerCase()), limit(1))).catch(() => null)
-  if (nameSnap && !nameSnap.empty) return nameSnap.docs[0].id
+  if (byEmail && !byEmail.empty) return byEmail.docs[0].id
+  if (byDisplay && !byDisplay.empty) return byDisplay.docs[0].id
+
   // 5) Fall back to usernameLower (requires composite index).
-  const usernameLowerSnap = await getDocs(query(collection(db, 'users'), where('usernameLower', '==', key.toLowerCase()), limit(1))).catch(() => null)
+  const usernameLowerSnap = await getDocs(query(collection(db, 'users'), where('usernameLower', '==', lower), limit(1))).catch(() => null)
   if (usernameLowerSnap && !usernameLowerSnap.empty) return usernameLowerSnap.docs[0].id
   return null
 }
@@ -149,10 +139,24 @@ export function subscribePosts(onData) {
   }
 }
 
+// Build the searchTokens array (server- and client- side) so posts can be
+// found by /api/search. Lower-cased, deduped, alphanumeric, 2+ chars.
+export function buildSearchTokens(text = '') {
+  if (!text) return []
+  const matches = String(text).toLowerCase().match(/[a-z0-9_]{2,}/g) || []
+  return [...new Set(matches)].slice(0, 20)
+}
+
 export async function createPost(post) {
+  const searchTokens = buildSearchTokens(
+    [post.content, post.code, (post.tags || []).join(' '), post.type]
+      .filter(Boolean)
+      .join(' '),
+  )
   const ref = await addDoc(collection(db, 'posts'), {
     likes: 0,
     commentsCount: 0,
+    searchTokens,
     ...post,
     createdAt: serverTimestamp(),
   })
@@ -195,6 +199,7 @@ export async function repost(original, me, quote = '') {
 // ----------------------------------------------------------------------------
 // Likes — per-user doc under the post + an atomic counter on the post.
 // Uses a transaction to ensure the like doc and counter stay in sync.
+// Throws on error so callers (e.g. useStore) can roll back optimistic UI.
 // ----------------------------------------------------------------------------
 export async function setPostLike(postId, uid, liked) {
   const postRef = doc(db, 'posts', postId)
@@ -210,7 +215,7 @@ export async function setPostLike(postId, uid, liked) {
       tx.update(postRef, { likes: increment(-1) })
     }
     // Idempotent: if already liked and asked to like, do nothing.
-  }).catch(() => {})
+  })
 }
 
 // Subscribe to *which* posts the current user has liked (postId -> true).
@@ -267,20 +272,29 @@ export function subscribeMySaves(uid, onData) {
 
 // ----------------------------------------------------------------------------
 // Follows — edge doc + denormalised counters on both profiles.
+// Uses a single transaction so the edge + counters stay consistent. Throws
+// on error so the caller can roll back the optimistic UI.
 // ----------------------------------------------------------------------------
 export async function setFollow(meUid, targetUid, following) {
+  if (!meUid || !targetUid) throw new Error('Missing uid')
+  if (meUid === targetUid) throw new Error('Cannot follow yourself')
   const edge = doc(db, 'users', meUid, 'following', targetUid)
   const meRef = doc(db, 'users', meUid)
   const targetRef = doc(db, 'users', targetUid)
-  if (following) {
-    await setDoc(edge, { uid: targetUid, createdAt: serverTimestamp() })
-    await updateDoc(meRef, { followingCount: increment(1) }).catch(() => {})
-    await updateDoc(targetRef, { followersCount: increment(1) }).catch(() => {})
-  } else {
-    await deleteDoc(edge)
-    await updateDoc(meRef, { followingCount: increment(-1) }).catch(() => {})
-    await updateDoc(targetRef, { followersCount: increment(-1) }).catch(() => {})
-  }
+  await runTransaction(db, async (tx) => {
+    const edgeSnap = await tx.get(edge)
+    const alreadyFollowing = edgeSnap.exists()
+    if (following && !alreadyFollowing) {
+      tx.set(edge, { uid: targetUid, createdAt: serverTimestamp() })
+      tx.update(meRef, { followingCount: increment(1) })
+      tx.update(targetRef, { followersCount: increment(1) })
+    } else if (!following && alreadyFollowing) {
+      tx.delete(edge)
+      tx.update(meRef, { followingCount: increment(-1) })
+      tx.update(targetRef, { followersCount: increment(-1) })
+    }
+    // Idempotent: no-op if the state already matches.
+  })
 }
 
 export function subscribeMyFollowing(uid, onData) {

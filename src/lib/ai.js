@@ -13,9 +13,10 @@ export const aiEnabled = () => true
 
 // --- Production path: call our serverless proxy (key stays on the server) ---
 async function chatViaProxy(messages, { temperature, maxTokens }) {
+  const token = await import('../firebase').then(m => m.auth.currentUser?.getIdToken()).catch(() => null)
   const res = await fetch('/api/ai', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ messages, temperature, maxTokens }),
   })
   if (!res.ok) {

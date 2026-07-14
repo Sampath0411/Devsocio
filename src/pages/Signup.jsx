@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
-import { emailSignup, googleLogin, githubLogin, authErrorMessage } from '../lib/auth'
+import { emailSignup, googleLogin, githubLogin, authErrorMessage, validateUsername } from '../lib/auth'
 import { earnCredits } from '../lib/credits'
 import { AuthShell, Divider } from './Login'
 import { motion } from 'framer-motion'
@@ -57,6 +57,8 @@ export default function Signup() {
 
   const submit = async (e) => {
     e?.preventDefault()
+    const usernameErr = validateUsername(form.username)
+    if (usernameErr) { toast(usernameErr, { tone: 'warning' }); return }
     setBusy(true)
     try {
       await emailSignup({ ...form, referredBy: form.ref || null })
@@ -90,9 +92,9 @@ export default function Signup() {
 
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          <input className="input" placeholder="Username" value={form.username}
-            onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          <input className="input" placeholder="Display name" value={form.displayName}
+          <input className="input" placeholder="Username" maxLength={24} value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })} />
+          <input className="input" placeholder="Display name" maxLength={40} value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
         </div>
         <input className="input" type="email" placeholder="Email" required value={form.email}

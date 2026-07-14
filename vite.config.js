@@ -9,6 +9,7 @@ export default defineConfig({
     open: true,
   },
   build: {
+    sourcemap: false,
     rollupOptions: {
       output: {
         // Split heavy vendor deps into their own chunks for faster first load.

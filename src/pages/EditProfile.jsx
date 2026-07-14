@@ -172,7 +172,7 @@ export default function EditProfile() {
 
         <div>
           <label className="mb-1 block text-xs font-semibold text-text-muted">Display name</label>
-          <input className="input" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
+          <input className="input" maxLength={40} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
         </div>
 
         {/* GitHub integration + featured projects */}
@@ -187,7 +187,7 @@ export default function EditProfile() {
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-text-muted">Other links (LinkedIn, X, portfolio…)</label>
           <div className="flex gap-2">
-            <input className="input text-xs" placeholder="Paste GitHub / LinkedIn / X / portfolio URL…"
+            <input className="input text-xs" placeholder="Paste GitHub / LinkedIn / X / portfolio URL…" maxLength={300}
               value={linkInput} onChange={(e) => setLinkInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLink())} />
             <button type="button" onClick={addLink} disabled={!linkInput.trim()} className="btn-primary shrink-0 !px-3"><Plus size={15} /></button>

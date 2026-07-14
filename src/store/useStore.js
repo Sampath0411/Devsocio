@@ -21,7 +21,15 @@ export const useStore = create((set, get) => ({
   setAuthReady: (v) => set({ authReady: v }),
   setFirebaseUser: (u) => set({ firebaseUser: u }),
   setProfile: (p) => set({ user: p }),
-  clearAuth: () => set({ firebaseUser: null, user: null, likes: {}, saved: {}, following: {} }),
+  clearAuth: () => set({
+    firebaseUser: null,
+    user: null,
+    likes: {},
+    saved: {},
+    following: {},
+    _pendingLikes: {},
+    _lastError: null,
+  }),
 
   // ---- credits (PRD 5) — all writes go through /api/credits ----
   // The server uses the Admin SDK to atomically update Firestore and
@@ -32,10 +40,11 @@ export const useStore = create((set, get) => ({
   // addCredits is a no-op — earning actions go through earnCredits() in
   // lib/credits.js which calls the server directly. spendCredits makes a
   // server call and returns false if the user has insufficient credits.
+  // `spendKey` must match a server-defined SPEND_ACTIONS key (e.g. 'invest_idea').
   addCredits: async (_amount) => { /* no-op: credits are server-authoritative */ },
-  spendCredits: async (amount, description) => {
+  spendCredits: async (spendKey, targetId) => {
     try {
-      const r = await spendCreditsRemote(amount, description)
+      const r = await spendCreditsRemote(spendKey, targetId)
       return !!r?.ok
     } catch {
       return false
@@ -48,18 +57,21 @@ export const useStore = create((set, get) => ({
     if (u) {
       try {
         await updateProfileDoc(u.uid, fields)
-      } catch {
-        /* ignore */
+      } catch (err) {
+        // Roll back optimistic update.
+        const previous = get().user
+        if (previous) set({ user: previous })
+        set({ _lastError: { kind: 'profile', message: 'Could not save profile changes' } })
       }
     }
   },
 
-  // ---- feed (real-time from Firestore, mock fallback) ----
+  // ---- feed (real-time from Firestore) ----
   posts: [],
   setPosts: (posts) => set({ posts }),
   addPostLocal: (post) => set((s) => ({ posts: [post, ...s.posts] })),
 
-  // ---- directory of users (real-time from Firestore, mock fallback) ----
+  // ---- directory of users (real-time from Firestore) ----
   users: [],
   setUsers: (users) => set({ users }),
 
@@ -78,57 +90,80 @@ export const useStore = create((set, get) => ({
     const u = get().firebaseUser
     if (!u) return
     // Prevent concurrent calls on the same post
-    const pending = get()._pendingLikes
-    if (pending[postId]) return
-    pending[postId] = true
-    set({ _pendingLikes: { ...pending } })
+    if (get()._pendingLikes[postId]) return
+    set((s) => ({ _pendingLikes: { ...s._pendingLikes, [postId]: true } }))
     const next = !get().likes[postId]
     set((s) => ({
       likes: { ...s.likes, [postId]: next },
     }))
     setPostLike(postId, u.uid, next)
+      .then(() => {
+        // Only send the notification AFTER the like is confirmed.
+        if (next && authorUid && authorUid !== u.uid) {
+          pushNotification(authorUid, {
+            type: 'like',
+            actorUid: u.uid,
+            actor: minimalActor(get().user),
+            text: 'liked your post',
+            postId,
+          }).catch(() => { /* notification is best-effort */ })
+        }
+      })
       .catch(() => {
         // revert on failure
         set((s) => ({ likes: { ...s.likes, [postId]: !next } }))
+        set({ _lastError: { kind: 'like', message: 'Could not update like — try again' } })
       })
       .finally(() => {
         const p = { ...get()._pendingLikes }
         delete p[postId]
         set({ _pendingLikes: p })
       })
-    if (next && authorUid && authorUid !== u.uid) {
-      pushNotification(authorUid, {
-        type: 'like',
-        actorUid: u.uid,
-        actor: minimalActor(get().user),
-        text: 'liked your post',
-        postId,
-      })
-    }
   },
 
   toggleSave: (postId) => {
     const u = get().firebaseUser
+    if (!u) return
     const next = !get().saved[postId]
     set((s) => ({ saved: { ...s.saved, [postId]: next } }))
-    if (u) setPostSave(u.uid, postId, next).catch(() => {})
+    setPostSave(u.uid, postId, next).catch(() => {
+      // Roll back optimistic save on failure.
+      set((s) => ({ saved: { ...s.saved, [postId]: !next } }))
+      set({ _lastError: { kind: 'save', message: 'Could not update save — try again' } })
+    })
   },
 
   toggleFollow: (uid) => {
     const u = get().firebaseUser
+    if (!u) return
+    if (uid === u.uid) return
     const next = !get().following[uid]
     set((s) => ({ following: { ...s.following, [uid]: next } }))
-    if (!u) return
-    setFollow(u.uid, uid, next).catch(() => {})
-    if (next && uid !== u.uid) {
-      pushNotification(uid, {
-        type: 'follow',
-        actorUid: u.uid,
-        actor: minimalActor(get().user),
-        text: 'started following you',
+    setFollow(u.uid, uid, next)
+      .then(() => {
+        // Only notify after the follow is confirmed.
+        if (next) {
+          pushNotification(uid, {
+            type: 'follow',
+            actorUid: u.uid,
+            actor: minimalActor(get().user),
+            text: 'started following you',
+          }).catch(() => { /* best-effort */ })
+        }
       })
-    }
+      .catch(() => {
+        // Roll back optimistic follow on failure.
+        set((s) => ({ following: { ...s.following, [uid]: !next } }))
+        set({ _lastError: { kind: 'follow', message: 'Could not update follow — try again' } })
+      })
   },
+
+  // ---- transient error channel ----
+  // Components subscribe to this and surface a toast; App.jsx clears it after
+  // showing. Decouples the store from the React toast context.
+  _lastError: null,
+  setLastError: (err) => set({ _lastError: err }),
+  clearLastError: () => set({ _lastError: null }),
 }))
 
 // Trim a profile to the fields a notification needs to render an avatar + link.

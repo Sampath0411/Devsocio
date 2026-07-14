@@ -3,9 +3,10 @@ import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { Avatar, VerifiedTick } from '../components/ui'
 import {
-  changeCredits, setCredits, setUserFlag, subscribeReports, resolveReport, deletePost,
+  subscribeReports, resolveReport, deletePost,
   subscribeErrors, resolveError, subscribeAdminDigest,
 } from '../lib/db'
+import { setUserFlag, changeCredits, setCredits } from '../lib/adminApi'
 import { timeAgo, formatNum } from '../lib/time'
 import { isFounder } from '../lib/auth'
 import AdminAgentChat from '../components/AdminAgentChat'

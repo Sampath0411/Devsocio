@@ -155,7 +155,7 @@ export default function CreatePostModal({ open, onClose }) {
               })}
             </div>
 
-            <textarea className="input min-h-[120px] resize-none"
+            <textarea className="input min-h-[120px] resize-none" maxLength={4000}
               placeholder={`Share a ${type.toLowerCase()}…`}
               value={content} onChange={(e) => setContent(e.target.value)} />
 

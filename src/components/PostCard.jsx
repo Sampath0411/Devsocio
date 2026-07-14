@@ -14,6 +14,7 @@ import { MessageCircle, Repeat2, Share2, Bookmark, MoreHorizontal, Flag, X, Tras
 const REPORT_REASONS = ['Spam', 'Abuse', 'Misinformation', 'NSFW']
 
 export default function PostCard({ post }) {
+  if (!post) return null
   const toggleLike = useStore((s) => s.toggleLike)
   const likes = useStore((s) => s.likes)
   const saved = useStore((s) => s.saved)
@@ -68,8 +69,11 @@ export default function PostCard({ post }) {
   const onFollow = (e) => {
     e.preventDefault()
     if (!authorUid) return
+    // Read the latest value from the store so a double-click doesn't fire the
+    // wrong toast (the closure-captured value is stale after the first click).
+    const currentlyFollowing = useStore.getState().following[authorUid]
     toggleFollow(authorUid)
-    if (!isFollowing) toast(`Following ${post.author?.displayName || 'user'}`, { tone: 'success' })
+    if (!currentlyFollowing) toast(`Following ${post.author?.displayName || 'user'}`, { tone: 'success' })
   }
 
   const removePost = async () => {
@@ -152,13 +156,16 @@ export default function PostCard({ post }) {
         </span>
         <div className="relative">
           <button onClick={() => setMenuOpen((o) => !o)}
-            className="text-text-muted hover:text-text-primary" aria-label="More">
+            aria-label="More actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="text-text-muted hover:text-text-primary">
             <MoreHorizontal size={18} />
           </button>
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 z-20 mt-1 w-44 rounded-card border border-border bg-surface p-1.5 shadow-2xl">
+              <div role="menu" className="absolute right-0 z-20 mt-1 w-44 rounded-card border border-border bg-surface p-1.5 shadow-2xl">
                 {canDelete && (
                   <>
                     <button onClick={removePost}
@@ -251,18 +258,21 @@ export default function PostCard({ post }) {
         </span>
         <Link
           to={`/post/${post.postId}`}
+          aria-label={`${post.commentsCount || 0} comments`}
           className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-surface-2 hover:text-white transition-colors"
         >
           <MessageCircle size={17} /> <span>{post.commentsCount}</span>
         </Link>
         <button
           onClick={() => setRepostOpen(true)}
+          aria-label="Repost"
           className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-surface-2 hover:text-success transition-colors"
         >
           <Repeat2 size={17} /> <span className="hidden sm:inline">Repost</span>
         </button>
         <button
           onClick={share}
+          aria-label="Share"
           className="flex items-center gap-1.5 rounded-input px-2.5 py-1.5 text-text-muted hover:bg-surface-2 hover:text-primary transition-colors"
         >
           <Share2 size={17} /> <span className="hidden sm:inline">Share</span>
@@ -283,6 +293,9 @@ export default function PostCard({ post }) {
       {/* Repost / quote modal */}
       {repostOpen && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Repost"
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
           onClick={() => setRepostOpen(false)}
         >
@@ -300,6 +313,7 @@ export default function PostCard({ post }) {
               </h3>
               <button
                 onClick={() => setRepostOpen(false)}
+                aria-label="Close"
                 className="text-text-muted hover:text-white transition-colors"
               >
                 <X size={18} />

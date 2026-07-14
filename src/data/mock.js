@@ -272,13 +272,13 @@ export const LEADERBOARD = [
 
 // Credits shop — PRD §5.2
 export const REWARDS = [
-  { id: 'r1', name: 'Featured Post', cost: 200, desc: 'Pinned to Explore for 24h', icon: 'Pin' },
-  { id: 'r2', name: 'Profile Boost', cost: 150, desc: 'Shown in Suggested Devs for 48h', icon: 'Rocket' },
-  { id: 'r3', name: 'Verified Badge', cost: 500, desc: 'Green checkmark (activity-based)', icon: 'BadgeCheck' },
-  { id: 'r4', name: 'Custom AI Persona', cost: 300, desc: 'Unique AI style for your posts', icon: 'Bot' },
-  { id: 'r5', name: 'Extra AI Calls', cost: 50, desc: '5 calls beyond daily limit', icon: 'Zap' },
-  { id: 'r6', name: 'Profile Theme', cost: 100, desc: 'Premium color schemes', icon: 'Palette' },
-  { id: 'r7', name: '"Top Dev" Badge', cost: 1000, desc: 'Permanent leaderboard badge', icon: 'Crown' },
+  { id: 'r1', name: 'Featured Post', cost: 200, desc: 'Pinned to Explore for 24h', icon: 'Pin', spendKey: 'redeem_featured' },
+  { id: 'r2', name: 'Profile Boost', cost: 150, desc: 'Shown in Suggested Devs for 48h', icon: 'Rocket', spendKey: 'redeem_profile_boost' },
+  { id: 'r3', name: 'Verified Badge', cost: 500, desc: 'Green checkmark (activity-based)', icon: 'BadgeCheck', spendKey: 'redeem_verified_badge' },
+  { id: 'r4', name: 'Custom AI Persona', cost: 300, desc: 'Unique AI style for your posts', icon: 'Bot', spendKey: 'redeem_ai_persona' },
+  { id: 'r5', name: 'Extra AI Calls', cost: 80, desc: '5 calls beyond daily limit', icon: 'Zap', spendKey: 'redeem_extra_credits' },
+  { id: 'r6', name: 'Profile Theme', cost: 100, desc: 'Premium color schemes', icon: 'Palette', spendKey: 'redeem_theme' },
+  { id: 'r7', name: '"Top Dev" Badge', cost: 1000, desc: 'Permanent leaderboard badge', icon: 'Crown', spendKey: 'redeem_top_dev' },
 ]
 
 // Earning rules — PRD §5.1
