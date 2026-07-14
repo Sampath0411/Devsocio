@@ -7,13 +7,15 @@
 // from production builds, so the dev key never ships. Every caller has a local
 // fallback so the UI never breaks.
 
+import { auth } from '../firebase'
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 export const aiEnabled = () => true
 
 // --- Production path: call our serverless proxy (key stays on the server) ---
 async function chatViaProxy(messages, { temperature, maxTokens }) {
-  const token = await import('../firebase').then(m => m.auth.currentUser?.getIdToken()).catch(() => null)
+  const token = await auth?.currentUser?.getIdToken()
   const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

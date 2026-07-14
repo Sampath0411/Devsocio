@@ -1,8 +1,8 @@
 import { Component, useEffect, useRef, useState } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth, initFirebase, initAnalytics, MISSING_FIREBASE_KEYS } from './firebase'
+import { auth, initFirebase, initAnalytics } from './firebase'
 import { ensureProfile, isAdmin, logout } from './lib/auth'
 import { reportError } from './lib/errorReporter'
 import {
@@ -38,8 +38,7 @@ import PostDetail from './pages/PostDetail'
 import Admin from './pages/Admin'
 import Settings from './pages/Settings'
 
-// Catch render-time crashes anywhere in the tree, log them for the Admin
-// Copilot, and show a recoverable fallback instead of a white screen.
+// ---- Error Boundary ----
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -57,15 +56,11 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="grid min-h-screen place-items-center p-6 text-center">
+        <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
           <div className="max-w-sm space-y-3">
-            <h1 className="font-display text-xl font-bold">Something went wrong</h1>
-            <p className="text-sm text-text-muted">
-              The error was logged for the team. Try reloading the page.
-            </p>
-            <button className="btn-primary" onClick={() => window.location.reload()}>
-              Reload
-            </button>
+            <h1 className="font-display text-xl font-bold text-white">Something went wrong</h1>
+            <p className="text-sm text-text-muted">The error was logged. Try reloading.</p>
+            <button className="btn-primary" onClick={() => window.location.reload()}>Reload</button>
           </div>
         </div>
       )
@@ -74,48 +69,64 @@ class ErrorBoundary extends Component {
   }
 }
 
-// Auth guard — protected routes redirect to /login (PRD §9).
+// ---- Guards ----
 function Protected({ children, wide }) {
   const firebaseUser = useStore((s) => s.firebaseUser)
   const location = useLocation()
+  if (!initFirebase()) return <Navigate to="/" replace />
   if (!firebaseUser) return <Navigate to="/login" replace state={{ from: location }} />
   return <Layout wide={wide}>{children}</Layout>
 }
 
-// Admin-only guard — only the configured ADMIN_EMAIL may view /admin (PRD §9).
 function AdminOnly({ children }) {
   const firebaseUser = useStore((s) => s.firebaseUser)
   const location = useLocation()
+  if (!initFirebase()) return <Navigate to="/" replace />
   if (!firebaseUser) return <Navigate to="/login" replace state={{ from: location }} />
   if (!isAdmin(firebaseUser)) return <Navigate to="/feed" replace />
   return <Layout wide>{children}</Layout>
 }
 
-// Firebase config error screen — shown instead of blank white page.
-function FirebaseConfigError() {
-  return (
-    <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
-      <div className="max-w-md space-y-4">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-primary/30 bg-primary/10">
-          <span className="text-2xl">⚙️</span>
+// ---- Auth-gated Login/Signup wrappers ----
+function LoginGate() {
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  if (!initFirebase()) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
+        <div className="max-w-sm space-y-4">
+          <h1 className="font-display text-xl font-bold text-white">Firebase not configured</h1>
+          <p className="text-sm text-text-muted">
+            Set <code className="text-primary">VITE_FIREBASE_*</code> env vars in Vercel to enable authentication.
+          </p>
+          <button className="btn-primary" onClick={() => window.location.reload()}>Retry</button>
         </div>
-        <h1 className="font-display text-xl font-bold text-white">Firebase not configured</h1>
-        <p className="text-sm text-text-muted leading-relaxed">
-          The following environment variables are missing from your deployment:
-        </p>
-        <div className="rounded-card border border-border bg-surface-3 p-3 text-left">
-          {MISSING_FIREBASE_KEYS.map((key) => (
-            <code key={key} className="block text-xs font-mono text-primary py-0.5">VITE_FIREBASE_{key}</code>
-          ))}
-        </div>
-        <p className="text-xs text-text-muted">
-          Set them in your hosting provider's environment variables and redeploy.
-        </p>
       </div>
-    </div>
-  )
+    )
+  }
+  if (firebaseUser) return <Navigate to="/feed" replace />
+  return <Login />
 }
 
+function SignupGate() {
+  const firebaseUser = useStore((s) => s.firebaseUser)
+  if (!initFirebase()) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
+        <div className="max-w-sm space-y-4">
+          <h1 className="font-display text-xl font-bold text-white">Firebase not configured</h1>
+          <p className="text-sm text-text-muted">
+            Set <code className="text-primary">VITE_FIREBASE_*</code> env vars in Vercel to enable authentication.
+          </p>
+          <button className="btn-primary" onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      </div>
+    )
+  }
+  if (firebaseUser) return <Navigate to="/feed" replace />
+  return <Signup />
+}
+
+// ---- App ----
 export default function App() {
   const {
     authReady, setAuthReady, setFirebaseUser, setProfile, clearAuth,
@@ -123,14 +134,10 @@ export default function App() {
   } = useStore()
   const toast = useToast()
 
-  const [fbReady, setFbReady] = useState(false)
-  const [fbError, setFbError] = useState(false)
   const [showTour, setShowTour] = useState(false)
   const claimedMilestones = useRef(new Set())
 
-  // Subscribe to transient errors emitted by the store (e.g. a failed like
-  // write) and surface them as a toast. Decouples the store from the React
-  // toast context so non-component code can signal errors.
+  // Surface store errors as toasts.
   useEffect(() => {
     const unsub = useStore.subscribe((state, prev) => {
       const err = state._lastError
@@ -142,50 +149,28 @@ export default function App() {
     return unsub
   }, [toast])
 
-  // Real-time auth state (PRD §3.1.2) + live profile, feed, directory & graph.
+  // Init Firebase + auth + subscriptions.
   useEffect(() => {
-    // Initialize Firebase — must succeed before any API calls.
-    if (!initFirebase()) {
-      setFbError(true)
-      setFbReady(true)
-      return
-    }
-    setFbReady(true)
+    initFirebase()
     initAnalytics()
     const unsubPosts = subscribePosts((posts) => {
       setPosts(posts)
-      // Feature 5: Check if any post owned by the current user just crossed
-      // 10 or 50 likes — if so, silently claim milestone credits on their behalf.
       const { firebaseUser: u } = useStore.getState()
       if (!u) return
       const mine = posts.filter((p) => p.authorUid === u.uid)
       const set = claimedMilestones.current
       for (const p of mine) {
-        // Only claim if the server hasn't already paid it AND we haven't
-        // already attempted it in this session. The client-side check
-        // is a UX optimization; the server transaction is authoritative.
         if (p.likes >= 10 && !p.milestone10Paid && !set.has(p.postId + '_10')) {
           set.add(p.postId + '_10')
           claimPostMilestone('post_10_likes', p.postId)
-            .then((r) => {
-              // If the server awarded credits, keep the entry in `set` so
-              // we don't spam the endpoint. Otherwise free it so a stale
-              // snapshot can retry later.
-              if (!r?.awarded) set.delete(p.postId + '_10')
-            })
-            .catch(() => {
-              set.delete(p.postId + '_10') // retry on network error
-            })
+            .then((r) => { if (!r?.awarded) set.delete(p.postId + '_10') })
+            .catch(() => set.delete(p.postId + '_10'))
         }
         if (p.likes >= 50 && !p.milestone50Paid && !set.has(p.postId + '_50')) {
           set.add(p.postId + '_50')
           claimPostMilestone('post_50_likes', p.postId)
-            .then((r) => {
-              if (!r?.awarded) set.delete(p.postId + '_50')
-            })
-            .catch(() => {
-              set.delete(p.postId + '_50')
-            })
+            .then((r) => { if (!r?.awarded) set.delete(p.postId + '_50') })
+            .catch(() => set.delete(p.postId + '_50'))
         }
       }
     })
@@ -198,20 +183,16 @@ export default function App() {
     let presenceTimer = null
     const stopPresence = () => { if (presenceTimer) clearInterval(presenceTimer); presenceTimer = null }
 
-    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+    const unsubAuth = auth ? onAuthStateChanged(auth, async (u) => {
       unsubProfile?.()
       unsubProfile = null
-      // Start live users list only once auth is ready — avoids a
-      // permission-denied error for unauthenticated listeners.
       if (!unsubUsers) unsubUsers = subscribeUsers(setUsers)
       stopGraph()
       stopPresence()
       setFirebaseUser(u)
       if (u) {
-        // Heartbeat: stamp lastActiveAt now and every ~60s for online status.
         touchPresence(u.uid)
         presenceTimer = setInterval(() => touchPresence(u.uid), 60 * 1000)
-        // Live social graph for the signed-in user.
         unsubGraph = [
           subscribeMyLikes(u.uid, setLikes),
           subscribeMySaves(u.uid, setSaved),
@@ -225,29 +206,22 @@ export default function App() {
           }),
         ]
         try {
-          const initial = await ensureProfile(u) // create doc on first sign-in
+          const initial = await ensureProfile(u)
           if (initial.banned && !isAdmin(u)) { await logout(); return }
           setProfile(initial)
-          // Live profile — also enforces bans applied while the user is online.
-          // p === null means the profile doc was deleted; skip the update.
           unsubProfile = subscribeProfile(u.uid, (p) => {
             if (!p) return
             if (p.banned && !isAdmin(u)) { logout(); return }
             setProfile(p)
           })
-          // Feature 12: show onboarding tour for new users only
           if (!initial.onboardingDone) setShowTour(true)
         } catch {
-          // Firestore unreadable (rules) — fall back to a minimal profile.
           setProfile({
             uid: u.uid,
             username: (u.email || u.uid).split('@')[0],
             displayName: u.displayName || 'Developer',
             avatar: u.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${u.uid}&backgroundColor=007991`,
-            devLevel: 'Builder',
-            techStack: ['React'],
-            credits: 100,
-            links: {},
+            devLevel: 'Builder', techStack: ['React'], credits: 100, links: {},
           })
         }
       } else {
@@ -255,7 +229,7 @@ export default function App() {
         setShowTour(false)
       }
       setAuthReady(true)
-    })
+    }) : (() => { setAuthReady(true); return undefined })()
 
     return () => {
       unsubAuth()
@@ -270,50 +244,38 @@ export default function App() {
 
   return (
     <ToastProvider>
-      {fbError ? (
-        <FirebaseConfigError />
-      ) : !fbReady ? (
-        <PageLoader key="loader" />
-      ) : (
-        <>
-          <AnimatePresence>
-            {!authReady && <PageLoader key="loader" />}
-          </AnimatePresence>
+      <AnimatePresence>
+        {!authReady && <PageLoader key="loader" />}
+      </AnimatePresence>
 
-          {showTour && (
-            <OnboardingTour onDone={() => {
-              setShowTour(false)
-              if (auth?.currentUser) {
-                markOnboardingDone(auth.currentUser.uid).catch(() => {})
-              }
-            }} />
-          )}
+      {showTour && (
+        <OnboardingTour onDone={() => {
+          setShowTour(false)
+          if (auth?.currentUser) markOnboardingDone(auth.currentUser.uid).catch(() => {})
+        }} />
+      )}
 
-          {authReady && (
-            <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-
-              <Route path="/feed" element={<Protected><Feed /></Protected>} />
-              <Route path="/explore" element={<Protected><Explore /></Protected>} />
-              <Route path="/ideas" element={<Protected><Ideas /></Protected>} />
-              <Route path="/profile/edit" element={<Protected wide><EditProfile /></Protected>} />
-              <Route path="/profile/:username" element={<Protected><Profile /></Protected>} />
-              <Route path="/messages" element={<Protected wide><Messages /></Protected>} />
-              <Route path="/messages/:id" element={<Protected wide><Messages /></Protected>} />
-              <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
-              <Route path="/credits" element={<Protected wide><Credits /></Protected>} />
-              <Route path="/settings" element={<Protected wide><Settings /></Protected>} />
-              <Route path="/post/:id" element={<Protected><PostDetail /></Protected>} />
-              <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
-
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            </ErrorBoundary>
-          )}
-        </>
+      {authReady && (
+        <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<LoginGate />} />
+          <Route path="/signup" element={<SignupGate />} />
+          <Route path="/feed" element={<Protected><Feed /></Protected>} />
+          <Route path="/explore" element={<Protected><Explore /></Protected>} />
+          <Route path="/ideas" element={<Protected><Ideas /></Protected>} />
+          <Route path="/profile/edit" element={<Protected wide><EditProfile /></Protected>} />
+          <Route path="/profile/:username" element={<Protected><Profile /></Protected>} />
+          <Route path="/messages" element={<Protected wide><Messages /></Protected>} />
+          <Route path="/messages/:id" element={<Protected wide><Messages /></Protected>} />
+          <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
+          <Route path="/credits" element={<Protected wide><Credits /></Protected>} />
+          <Route path="/settings" element={<Protected wide><Settings /></Protected>} />
+          <Route path="/post/:id" element={<Protected><PostDetail /></Protected>} />
+          <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        </ErrorBoundary>
       )}
     </ToastProvider>
   )
