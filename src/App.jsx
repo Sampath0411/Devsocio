@@ -195,7 +195,9 @@ export default function App() {
     const unsubAuth = auth ? onAuthStateChanged(auth, async (u) => {
       unsubProfile?.()
       unsubProfile = null
-      if (!unsubUsers) unsubUsers = subscribeUsers(setUsers)
+      // Drop any previous user-scoped subscriptions (e.g. from a stale
+      // onAuthStateChanged null-firing before the actual user resolved).
+      unsubUsers?.(); unsubUsers = null
       stopGraph()
       stopPresence()
       setFirebaseUser(u)
@@ -203,6 +205,10 @@ export default function App() {
       // Profile + graph subscriptions load asynchronously behind the shell.
       setAuthReady(true)
       if (u) {
+        // Only after the user is confirmed do we subscribe to Firestore
+        // collections — calling onSnapshot without auth triggers a permanent
+        // permission-denied error that never re-evaluates after sign-in.
+        if (!unsubUsers) unsubUsers = subscribeUsers(setUsers)
         touchPresence(u.uid)
         presenceTimer = setInterval(() => touchPresence(u.uid), 60 * 1000)
         unsubGraph = [
@@ -237,6 +243,8 @@ export default function App() {
           })
         }
       } else {
+        // User signed out — unsubscribe user-scoped listeners
+        unsubUsers?.(); unsubUsers = null
         clearAuth()
         setShowTour(false)
       }
