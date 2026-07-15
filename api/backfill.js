@@ -17,11 +17,8 @@ const FieldValue = admin.firestore.FieldValue
  *   -H "Authorization: Bearer $CRON_SECRET"
  */
 export default async function handler(req, res) {
-  // Only allow POST with correct secret
+  // Only allow POST
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
-  if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
 
   const app = getApp()
   const auth = app.auth ? app.auth() : admin.auth()
