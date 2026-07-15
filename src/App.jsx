@@ -149,6 +149,15 @@ export default function App() {
     return unsub
   }, [toast])
 
+  // Fallback: force authReady after 8s so preloader never hangs dead.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const { authReady } = useStore.getState()
+      if (!authReady) setAuthReady(true)
+    }, 8000)
+    return () => clearTimeout(t)
+  }, [setAuthReady])
+
   // Init Firebase + auth + subscriptions.
   useEffect(() => {
     firebaseInitialized
@@ -190,6 +199,9 @@ export default function App() {
       stopGraph()
       stopPresence()
       setFirebaseUser(u)
+      // Fire authReady ASAP so preloader disappears and app shell renders.
+      // Profile + graph subscriptions load asynchronously behind the shell.
+      setAuthReady(true)
       if (u) {
         touchPresence(u.uid)
         presenceTimer = setInterval(() => touchPresence(u.uid), 60 * 1000)
@@ -228,7 +240,6 @@ export default function App() {
         clearAuth()
         setShowTour(false)
       }
-      setAuthReady(true)
     }) : (() => { setAuthReady(true); return undefined })()
 
     return () => {
