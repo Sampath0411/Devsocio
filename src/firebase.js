@@ -1,7 +1,7 @@
-// Firebase initialization — resilient to missing env vars.
-// Landing page and public content render regardless of config.
-// Firebase features silently degrade when env vars aren't set.
-
+// Firebase initialization. Initializes eagerly at module load but catches
+// errors gracefully so the app never shows a blank screen.
+// Uses eager init (not lazy) because Vite/Rollup bundler doesn't preserve
+// live 'export let' bindings in production builds.
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, GithubAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
@@ -17,33 +17,29 @@ const required = {
 
 const hasAllKeys = Object.values(required).every(Boolean)
 
-// eslint-disable-next-line prefer-const
+// Always-available exports. Non-null only if Firebase initialized successfully.
 export let auth = null
-// eslint-disable-next-line prefer-const
 export let db = null
-// eslint-disable-next-line prefer-const
 export let googleProvider = null
-// eslint-disable-next-line prefer-const
 export let githubProvider = null
+export let firebaseInitialized = false
 
-export function initFirebase() {
-  if (getApps().length) {
-    const app = getApps()[0]
+try {
+  if (hasAllKeys) {
+    const app = getApps().length ? getApps()[0] : initializeApp(required)
     auth = getAuth(app)
     db = getFirestore(app)
     googleProvider = new GoogleAuthProvider()
     githubProvider = new GithubAuthProvider()
-    return true
+    firebaseInitialized = true
+  } else {
+    console.warn('[DevSocio] Firebase config missing — set VITE_FIREBASE_* env vars')
   }
-  if (!hasAllKeys) return false
-  const app = initializeApp(required)
-  auth = getAuth(app)
-  db = getFirestore(app)
-  googleProvider = new GoogleAuthProvider()
-  githubProvider = new GithubAuthProvider()
-  return true
+} catch (e) {
+  console.warn('[DevSocio] Firebase init failed:', e?.message)
 }
 
+// Analytics — optional, loaded lazily.
 export async function initAnalytics() {
   if (!auth) return null
   try {

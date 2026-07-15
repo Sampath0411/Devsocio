@@ -2,7 +2,7 @@ import { Component, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth, initFirebase, initAnalytics } from './firebase'
+import { auth, firebaseInitialized, initAnalytics } from './firebase'
 import { ensureProfile, isAdmin, logout } from './lib/auth'
 import { reportError } from './lib/errorReporter'
 import {
@@ -73,7 +73,7 @@ class ErrorBoundary extends Component {
 function Protected({ children, wide }) {
   const firebaseUser = useStore((s) => s.firebaseUser)
   const location = useLocation()
-  if (!initFirebase()) return <Navigate to="/" replace />
+  if (!firebaseInitialized) return <Navigate to="/" replace />
   if (!firebaseUser) return <Navigate to="/login" replace state={{ from: location }} />
   return <Layout wide={wide}>{children}</Layout>
 }
@@ -81,7 +81,7 @@ function Protected({ children, wide }) {
 function AdminOnly({ children }) {
   const firebaseUser = useStore((s) => s.firebaseUser)
   const location = useLocation()
-  if (!initFirebase()) return <Navigate to="/" replace />
+  if (!firebaseInitialized) return <Navigate to="/" replace />
   if (!firebaseUser) return <Navigate to="/login" replace state={{ from: location }} />
   if (!isAdmin(firebaseUser)) return <Navigate to="/feed" replace />
   return <Layout wide>{children}</Layout>
@@ -90,7 +90,7 @@ function AdminOnly({ children }) {
 // ---- Auth-gated Login/Signup wrappers ----
 function LoginGate() {
   const firebaseUser = useStore((s) => s.firebaseUser)
-  if (!initFirebase()) {
+  if (!firebaseInitialized) {
     return (
       <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
         <div className="max-w-sm space-y-4">
@@ -109,7 +109,7 @@ function LoginGate() {
 
 function SignupGate() {
   const firebaseUser = useStore((s) => s.firebaseUser)
-  if (!initFirebase()) {
+  if (!firebaseInitialized) {
     return (
       <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
         <div className="max-w-sm space-y-4">
@@ -151,7 +151,7 @@ export default function App() {
 
   // Init Firebase + auth + subscriptions.
   useEffect(() => {
-    initFirebase()
+    firebaseInitialized
     initAnalytics()
     const unsubPosts = subscribePosts((posts) => {
       setPosts(posts)
