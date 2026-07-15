@@ -53,14 +53,15 @@ export const useStore = create((set, get) => ({
 
   saveProfileFields: async (fields) => {
     const u = get().firebaseUser
+    // Capture pre-optimistic state for rollback
+    const prev = get().user
     set((s) => (s.user ? { user: { ...s.user, ...fields } } : {}))
-    if (u) {
+    if (u && prev) {
       try {
         await updateProfileDoc(u.uid, fields)
       } catch (err) {
-        // Roll back optimistic update.
-        const previous = get().user
-        if (previous) set({ user: previous })
+        // Roll back optimistic update to captured previous state.
+        set({ user: prev })
         set({ _lastError: { kind: 'profile', message: 'Could not save profile changes' } })
       }
     }

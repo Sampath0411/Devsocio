@@ -6,6 +6,9 @@ dist
 .env
 .env.*
 !.env.example
+.env.vercel
+.env.prod
+.env.local
 
 # Build output / analysis reports
 DevSocio_CODEBASE_ANALYSIS_REPORT.md

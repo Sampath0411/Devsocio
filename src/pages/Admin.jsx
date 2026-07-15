@@ -138,9 +138,9 @@ export default function Admin() {
   const [digest, setDigest] = useState(null)
   const [tab, setTab] = useState('AI Copilot')
 
-  useEffect(() => subscribeReports(setReports), [])
-  useEffect(() => subscribeErrors(setErrors), [])
-  useEffect(() => subscribeAdminDigest(setDigest), [])
+  useEffect(() => subscribeReports(setReports), [setReports])
+  useEffect(() => subscribeErrors(setErrors), [setErrors])
+  useEffect(() => subscribeAdminDigest(setDigest), [setDigest])
 
   const openReports = reports.filter((r) => r.status === 'pending')
   const openErrors = errors.filter((e) => (e.status || 'open') === 'open')

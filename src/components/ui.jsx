@@ -144,9 +144,10 @@ export function AIBadge({ children }) {
 }
 
 export function Avatar({ src, alt, size = 40, ring, founder }) {
+  const fallback = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(alt || 'default')}&backgroundColor=007991`
   const img = (
     <img
-      src={src}
+      src={src || fallback}
       alt={alt}
       width={size}
       height={size}
@@ -154,6 +155,7 @@ export function Avatar({ src, alt, size = 40, ring, founder }) {
       className={`rounded-full bg-bg object-cover shrink-0 ${
         ring ? 'ring-2 ring-primary ring-offset-2 ring-offset-bg' : ''
       }`}
+      onError={(e) => { e.target.src = fallback }}
     />
   )
   // Owner gets a gold gradient ring around the avatar, visible to everyone.
