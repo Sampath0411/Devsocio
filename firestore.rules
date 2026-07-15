@@ -22,11 +22,7 @@ service cloud.firestore {
     function isOwner() {
       // Hard-coded owner UID — checked at write time. Treat the owner's
       // account like any other admin but never demote or ban.
-      // 🔧 SET THIS: go to Firebase Console → Authentication → Users, find
-      //    the owner account (sampathlox@gmail.com), copy its UID, and paste
-      //    it below instead of 'YOUR_OWNER_FIREBASE_UID_HERE'.
-      //    Also set OWNER_UID in Vercel env vars (api/adminCredits.js reads it).
-      return signedIn() && request.auth.uid == 'YOUR_OWNER_FIREBASE_UID_HERE'
+      return signedIn() && request.auth.uid == 'MQfcNaP1wwfe7v9ZOxwLtsbuRqn2'
     }
     // A user the admin has banned cannot create new content (get returns null if doc not found).
     function isBanned() {
@@ -37,7 +33,7 @@ service cloud.firestore {
     // The owner account can never be banned or stripped of verified/moderator
     // — even by an admin write. Owner UID is baked into rules.
     function protectsOwner(uid) {
-      return !(uid == 'YOUR_OWNER_FIREBASE_UID_HERE'
+      return !(uid == 'MQfcNaP1wwfe7v9ZOxwLtsbuRqn2'
         && (request.resource.data.banned == true
             || request.resource.data.verified == false
             || request.resource.data.moderator == false))
