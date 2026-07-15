@@ -19,3 +19,7 @@ DevSocio_CODEBASE_ANALYSIS_REPORT.md
 
 # Firebase deploy cache
 .firebase/
+.vercel
+
+# Temp exports
+test.csv
